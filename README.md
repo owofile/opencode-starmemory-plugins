@@ -4,14 +4,16 @@
   <img src="StarMenoryLOGO.png" alt="StarMenory" width="200" />
 </p>
 
-[![MIT License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![GitHub stars](https://img.shields.io/github/stars/owofile/opencode-starmemory-plugins?style=social)](https://github.com/owofile/opencode-starmemory-plugins/stargazers)
-[![GitHub forks](https://img.shields.io/github/forks/owofile/opencode-starmemory-plugins?style=social)](https://github.com/owofile/opencode-starmemory-plugins/network)
-[![GitHub last commit](https://img.shields.io/github/last-commit/owofile/opencode-starmemory-plugins)](https://github.com/owofile/opencode-starmemory-plugins)
+<p align="center">
+  <img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="MIT">
+  <img src="https://img.shields.io/github/stars/owofile/opencode-starmemory-plugins?style=social" alt="Stars">
+  <img src="https://img.shields.io/github/forks/owofile/opencode-starmemory-plugins?style=social" alt="Forks">
+  <img src="https://img.shields.io/github/last-commit/owofile/opencode-starmemory-plugins" alt="Last Commit">
+</p>
 
-**StarMenory** = Star + Memory — 持久化星之记忆 | Persistent Stellar Memory
+**StarMenory** = Star + Memory — 持久化星之记忆
 
-OpenCode 长期记忆插件与技能系统 | OpenCode Long-term Memory Plugin & Skill System
+OpenCode 长期记忆插件与技能系统，让 AI 记住你的偏好、规则和项目上下文。
 
 ---
 
