@@ -1,5 +1,7 @@
 # StarMenory
 
+[English](./README_EN.md) | 中文
+
 <p align="center">
   <img src="StarMenoryLOGO.png" alt="StarMenory" width="200" />
 </p>
