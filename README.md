@@ -25,18 +25,11 @@
 
 ## 安装
 
+复制以下命令让 AI 自动安装：
+
 ```
-请帮我安装 v1.3.0 版本的 opencode-memory：https://github.com/owofile/opencode-starmemory-plugins/tree/main/v1.3.0
+安装 StarMenory v1.3.0：https://github.com/owofile/opencode-starmemory-plugins/tree/main/v1.3.0
 ```
-
----
-
-## v1.3.0 更新亮点
-
-- **自动同义词映射**：添加碎片时自动分析关键词并扩展同义词表
-- **多词搜索支持**：支持 "动漫 爱好 喜欢" 多词组合查询
-- **智能关联提取**：自动从内容中提取关联词存入 associations
-- **完整工具链**：memory / memory_fragment / synonym_map 三大工具
 
 ---
 
@@ -44,7 +37,7 @@
 
 | 版本 | 说明 |
 |------|------|
-| v1.3.0 | 优化版，自动添加映射+修复搜索（推荐） |
+| v1.3.0 | 推荐版本 |
 | v1.2.0 | JSON碎片+同义词映射 |
 | v1.1.0 | 增强版，SQLite 碎片化 |
 | v1.0.0 | 原始版本，JSON 存储 |
