@@ -27,7 +27,8 @@ This repo uses versioned folder structure. Each version is self-contained.
 |---------|-------------|-----------------|
 | **v1.0.0** | Original version, JSON storage | Stability, simple needs |
 | **v1.1.0** | Enhanced, SQLite fragmentation | Random retrieval, long-term memory |
-| **v1.2.0** | Final version, JSON+Synonym Map | Full features, ready to use |
+| **v1.2.0** | JSON+Synonym Map | Full features, ready to use |
+| **v1.3.0** | Optimized, auto-map+fix search | **Recommended latest** |
 
 ---
 
@@ -48,6 +49,11 @@ Please install v1.1.0 of opencode-memory: https://github.com/owofile/opencode-st
 Please install v1.2.0 of opencode-memory: https://github.com/owofile/opencode-starmemory-plugins/tree/main/v1.2.0
 ```
 
+### Install v1.3.0
+```
+Please install v1.3.0 of opencode-memory: https://github.com/owofile/opencode-starmemory-plugins/tree/main/v1.3.0
+```
+
 ---
 
 ## Directory Structure
@@ -64,13 +70,22 @@ opencode-starmemory-plugins/
 │   ├── plugins/opencode-memory/ # Plugin
 │   └── skills/memory-fragment/  # Skill
 │
-├── v1.2.0/                      # v1.2.0 Final version
+├── v1.2.0/                      # v1.2.0 version
 │   ├── INSTALL.md               # Installation guide
 │   ├── plugins/opencode-memory/ # Plugin
 │   ├── skills/
 │   │   ├── memory-manager/      # Long-term memory skill
 │   │   └── memory-fragment/    # Fragment memory skill
 │   └── associations_map.json    # Synonym map example
+│
+├── v1.3.0/                      # v1.3.0 Optimized version (Recommended)
+│   ├── INSTALL.md               # Installation guide
+│   ├── plugins/opencode-memory/ # Plugin
+│   ├── skills/
+│   │   ├── memory-manager/      # Long-term memory skill
+│   │   └── memory-fragment/    # Fragment memory skill
+│   ├── associations_map.json    # Synonym map (empty template)
+│   └── opencode.json           # Config example
 │
 ├── memory.json                   # Memory template
 ├── StarMenoryLOGO.png           # LOGO
@@ -79,7 +94,15 @@ opencode-starmemory-plugins/
 
 ---
 
-## v1.2.0 Core Features
+## v1.3.0 Core Features
+
+### Auto Synonym Mapping (New)
+
+Automatically analyze and add Chinese-English keyword pairs to synonym map when adding fragments.
+
+### Fixed Query Word Splitting
+
+Fixed expandQuery function to support multi-word search (e.g. "anime hobby like").
 
 ### Synonym Mapping System
 
@@ -134,16 +157,18 @@ echo '{"$schema":"https://opencode.ai/config.json","plugin":["file:///C:/Users/<
 
 ## Feature Comparison
 
-| Feature | v1.0.0 | v1.1.0 | v1.2.0 |
-|---------|--------|--------|--------|
-| Long-term Memory | ✅ | ✅ | ✅ |
-| Fragment Memory | ❌ | ✅ | ✅ |
-| Synonym Mapping | ❌ | ✅ | ✅ |
-| Auto Association | ❌ | ✅ | ✅ |
-| Temperature Retrieval | ❌ | ✅ | ✅ |
-| Weight/Layer Tracking | ❌ | ✅ | ✅ |
-| Auto Compact | ❌ | ✅ | ✅ |
-| Delete Preferences | ❌ | ❌ | ✅ |
+| Feature | v1.0.0 | v1.1.0 | v1.2.0 | v1.3.0 |
+|---------|--------|--------|--------|--------|
+| Long-term Memory | ✅ | ✅ | ✅ | ✅ |
+| Fragment Memory | ❌ | ✅ | ✅ | ✅ |
+| Synonym Mapping | ❌ | ✅ | ✅ | ✅ |
+| Auto Association | ❌ | ✅ | ✅ | ✅ |
+| Temperature Retrieval | ❌ | ✅ | ✅ | ✅ |
+| Weight/Layer Tracking | ❌ | ✅ | ✅ | ✅ |
+| Auto Compact | ❌ | ✅ | ✅ | ✅ |
+| Delete Preferences | ❌ | ❌ | ✅ | ✅ |
+| Auto Add Synonym Map | ❌ | ❌ | ❌ | ✅ |
+| Multi-word Search | ❌ | ❌ | ❌ | ✅ |
 
 ---
 
