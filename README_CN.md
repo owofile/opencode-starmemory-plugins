@@ -14,7 +14,7 @@
 
 <p align="center">OpenCode 长期记忆插件与技能系统，让 AI 记住你的偏好、规则和项目上下文。</p>
 
-<small><a href="./README.md">English</a></small>
+
 
 ---
 
