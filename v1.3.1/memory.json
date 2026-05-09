@@ -1,0 +1,52 @@
+{
+  "version": 2,
+  "user": {
+    "preferences": {
+      "responseStyle": "简洁直接",
+      "language": "中文",
+      "timezone": "Asia/Shanghai",
+      "name": "YourName",
+      "assistantName": "Alice",
+      "downloadPolicy": "下载任何依赖/库/文件前必须先询问用户",
+      "operationConfirmation": "删除和下载操作必须：暂停执行",
+      "download.defaultPath": "默认下载到D盘"
+    }
+  },
+  "strict": {
+    "forbiddenCommands": [
+      {
+        "id": "forbid_no_rf_root",
+        "pattern": "rm\\s+-rf\\s+/",
+        "description": "禁止递归删除根目录",
+        "severity": "critical"
+      },
+      {
+        "id": "forbid_no_rf_drive",
+        "pattern": "rm\\s+-rf\\s+[A-Za-z]:",
+        "description": "禁止删除整个盘符",
+        "severity": "critical"
+      },
+      {
+        "id": "forbid_no_format",
+        "pattern": "format\\s+[A-Za-z]:",
+        "description": "禁止格式化盘符",
+        "severity": "critical"
+      },
+      {
+        "id": "forbid_no_del_sys",
+        "pattern": "del\\s+/[fqs]\\s+/",
+        "description": "禁止强制删除系统目录",
+        "severity": "critical"
+      }
+    ],
+    "rules": [
+      "执行删除操作前必须确认路径",
+      "执行危险命令前必须使用 --WhatIf 或类似预览参数",
+      "涉及多文件操作前先列出将受影响文件",
+      "合适的时机主动使用",
+      "主动记忆需要持久化的重要信息（凭证、身份、配置等），标记高权重，仅必要时引用",
+      "当用户聊到个人兴趣爱好、生活习惯、偏好等话题时，必须自动使用 memory_fragment_search 检索相关碎片记忆并在回复中参考"
+    ]
+  },
+  "projects": {}
+}

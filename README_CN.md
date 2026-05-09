@@ -33,7 +33,7 @@
 复制以下命令让 AI 自动安装：
 
 ```
-安装 StarMenory v1.3.0：https://github.com/owofile/opencode-starmemory-plugins/tree/main/v1.3.0
+安装 StarMenory v1.3.1：https://github.com/owofile/opencode-starmemory-plugins/tree/main/v1.3.1
 ```
 
 ---
@@ -42,14 +42,16 @@
 
 ```
 opencode-starmemory-plugins/
-├── v1.3.0/                      # 推荐版本
+├── v1.3.1/                      # 推荐版本（最新）
 │   ├── INSTALL.md
+│   ├── memory.json             # 默认配置文件
 │   ├── plugins/opencode-memory/
 │   ├── skills/
 │   │   ├── memory-manager/
 │   │   └── memory-fragment/
 │   ├── associations_map.json
 │   └── opencode.json
+├── v1.3.0/
 ├── v1.2.0/
 ├── v1.1.0/
 ├── v1.0.0/
