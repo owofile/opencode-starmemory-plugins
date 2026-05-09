@@ -21,6 +21,8 @@ v1.3.1 修复了重要 bug，包含：
 C:\Users\<用户名>\.config\opencode\plugins\opencode-memory\index.js
 ```
 
+**注意**：如果目标目录已存在旧的 index.js，请先删除旧文件再复制新文件。
+
 ### 2. 复制 Skill 文件
 
 将 `skills/memory-manager/` 复制到：
@@ -35,16 +37,30 @@ C:\Users\<用户名>\.agents\skills\memory-fragment\
 
 ### 3. 复制默认配置（可选）
 
-将 `memory.json` 复制到：
+如果需要预置默认配置，将 `memory.json` 复制到：
 ```
 C:\Users\<用户名>\.config\opencode\memory.json
 ```
 
-此文件包含默认的用户偏好和安全规则，可按需修改。
+**注意**：如果该文件已存在，请手动合并或保留原有配置，不要直接覆盖。
 
 ### 4. 配置 opencode.json
 
-在 `C:\Users\<用户名>\.config\opencode\opencode.json` 中添加：
+**不要直接复制覆盖 opencode.json 文件！**
+
+如果你的 `~/.config/opencode/opencode.json` 中已有其他插件配置，只需添加一行：
+
+```json
+{
+  "$schema": "https://opencode.ai/config.json",
+  "plugin": [
+    "file:///你的其他插件路径",
+    "file:///C:/Users/<用户名>/.config/opencode/plugins/opencode-memory/index.js"
+  ]
+}
+```
+
+如果还没有 opencode.json，手动创建：
 
 ```json
 {
@@ -52,6 +68,8 @@ C:\Users\<用户名>\.config\opencode\memory.json
   "plugin": ["file:///C:/Users/<用户名>/.config/opencode/plugins/opencode-memory/index.js"]
 }
 ```
+
+**重要**：将 `<用户名>` 替换为你电脑的实际用户名！
 
 ### 5. 重启 OpenCode
 
@@ -109,9 +127,10 @@ C:\Users\<用户名>\.config\opencode\memory.json
 ## 卸载
 
 删除以下文件和目录：
-- `~/.config/opencode/plugins/opencode-memory/`
+- `~/.config/opencode/plugins/opencode-memory/`（整个目录）
 - `~/.agents/skills/memory-manager/`
 - `~/.agents/skills/memory-fragment/`
-- `~/.config/opencode/memory.json`
 - `~/.config/opencode/fragments.json`
 - `~/.config/opencode/associations_map.json`
+
+**注意**：`memory.json` 是用户数据，如需保留请勿删除。
