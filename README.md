@@ -14,7 +14,7 @@
 
 <p align="center">OpenCode Long-term Memory Plugin & Skill System. Let AI remember your preferences, rules, and project context.</p>
 
-[English](./README.md) | [中文](./README_CN.md)
+<p align="center">[English](./README.md) | [中文](./README_CN.md)</p>
 
 ---
 
