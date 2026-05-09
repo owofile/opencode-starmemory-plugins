@@ -19,23 +19,55 @@ OpenCode Long-term Memory Plugin & Skill System. Let AI remember your preference
 
 ---
 
+## Versions
+
+This repo uses versioned folder structure. Each version is self-contained.
+
+| Version | Description | Recommended For |
+|---------|-------------|-----------------|
+| **v1.0.0** | Original version, JSON storage | Stability, simple needs |
+| **v1.1.0** | Enhanced, SQLite fragmentation | Random retrieval, long-term memory management |
+
+---
+
 ## AI Auto-Install
 
-Give this repository URL to any AI and it will auto-install:
+### Install v1.0.0
+```
+Please install v1.0.0 of StarMenory: https://github.com/owofile/opencode-starmemory-plugins/tree/main/v1.0.0
+```
+
+### Install v1.1.0
+```
+Please install v1.1.0 of opencode-memory: https://github.com/owofile/opencode-starmemory-plugins/tree/main/v1.1.0
+```
+
+---
+
+## Directory Structure
 
 ```
-Please install this OpenCode plugin and Skill: https://github.com/owofile/opencode-starmemory-plugins
+opencode-starmemory-plugins/
+├── v1.0.0/                      # v1.0.0 Original version
+│   ├── INSTALL.md               # Installation guide
+│   ├── plugins/StarMenory/      # Plugin
+│   └── skills/memory-manager/   # Skill
+│
+├── v1.1.0/                      # v1.1.0 Enhanced version
+│   ├── INSTALL.md               # Installation guide
+│   ├── plugins/opencode-memory/ # Plugin (with src and dist)
+│   └── skills/memory-fragment/  # Skill
+│
+├── memory.json                   # Memory template
+├── StarMenoryLOGO.png           # LOGO
+└── README.md
 ```
 
-The AI will automatically:
-1. Clone the repo to temp directory
-2. Copy Skill to `~/.agents/skills/memory-manager/`
-3. Copy Plugin to `~/.config/opencode/plugins/StarMenory/`
-4. Configure `opencode.json`
-5. Initialize `memory.json` to `~/.config/opencode/`
-6. Verify installation
+---
 
-## Features
+## Features by Version
+
+### v1.0.0 (StarMenory)
 
 | Feature | Description |
 |---------|-------------|
@@ -45,110 +77,82 @@ The AI will automatically:
 | Keyword Detection | Detect "remember", "别忘" etc. and auto-prompt AI |
 | Full CRUD | View, Add, Update, Delete, Search memory |
 
-## Architecture
+### v1.1.0 (opencode-memory)
 
-```
-opencode-starmemory-plugins/
-├── plugins/StarMenory/
-│   └── index.js              # Plugin Entry
-├── skills/memory-manager/
-│   ├── SKILL.md              # Skill Definition
-│   └── memory-manager.js     # CLI Script
-├── memory.json               # Memory Template
-├── StarMenoryLOGO.png        # LOGO
-└── README_EN.md              # English README
-```
+| Feature | Description |
+|---------|-------------|
+| SQLite Storage | Fragment-based storage with temperature-controlled retrieval |
+| Memory Fragment Tools | 6 dedicated fragment tools |
+| Auto Association | Associations auto-extracted from content |
+| Weight & Layer | Fragment importance tracking |
+| Auto Compact | Automatic cleanup of unused fragments |
 
-## Manual Install
+---
+
+## Quick Start
+
+### Using v1.0.0
 
 ```bash
-# 1. Clone the repo
+# Clone the repo
 git clone https://github.com/owofile/opencode-starmemory-plugins
 cd opencode-starmemory-plugins
 
-# 2. Install Skill
+# Install Skill
 mkdir -p ~/.agents/skills/memory-manager
-cp -r skills/memory-manager/* ~/.agents/skills/memory-manager/
+cp -r v1.0.0/skills/memory-manager/* ~/.agents/skills/memory-manager/
 
-# 3. Install Plugin
+# Install Plugin
 mkdir -p ~/.config/opencode/plugins/StarMenory
-cp -r plugins/StarMenory/* ~/.config/opencode/plugins/StarMenory/
+cp -r v1.0.0/plugins/StarMenory/* ~/.config/opencode/plugins/StarMenory/
 
-# 4. Configure opencode.json
-echo '{"plugin":["~/.config/opencode/plugins/StarMenory/index.js"]}' >> ~/.config/opencode/opencode.json
-
-# 5. Initialize memory.json
+# Initialize memory.json
 cp memory.json ~/.config/opencode/memory.json
 ```
 
-## Usage
-
-### Auto Memory
-
-When your message contains these keywords, the system will auto-prompt AI to save memory:
-
-| English | Chinese |
-|---------|---------|
-| remember, save this | 记住、别忘 |
-| always use | 一直用、总是用 |
-| preference | 偏好 |
-
-### Manual memory Tool
+### Using v1.1.0
 
 ```bash
-# View all memory
-memory action=view
+# Clone the repo
+git clone https://github.com/owofile/opencode-starmemory-plugins
+cd opencode-starmemory-plugins
 
-# View user preferences
-memory action=view category=user
+# Install Plugin
+pluginDir=~/.config/opencode/plugins/opencode-memory
+mkdir -p $pluginDir/src $pluginDir/dist
+cp -r v1.1.0/plugins/opencode-memory/* $pluginDir/
 
-# Add user preference
-memory action=add category=user.preferences key=editor value=VSCode
+# Install Skill
+mkdir -p ~/.agents/skills/memory-fragment
+cp -r v1.1.0/skills/memory-fragment/* ~/.agents/skills/memory-fragment/
 
-# Add strict rule
-memory action=add category=strict.rules value="Confirm before execution"
-
-# Search memory
-memory action=search query=download
+# Install dependencies
+cd $pluginDir && npm install
 ```
 
-## Memory Structure
+---
 
-```json
-{
-  "version": 2,
-  "user": {
-    "preferences": {
-      "name": "Username",
-      "language": "English"
-    }
-  },
-  "strict": {
-    "forbiddenCommands": [
-      {
-        "id": "no-rf-root",
-        "pattern": "rm\\s+-rf\\s+/",
-        "description": "Prohibit recursive deletion of root directory",
-        "severity": "critical"
-      }
-    ],
-    "rules": [
-      "Confirm path before executing delete operations"
-    ]
-  },
-  "projects": {}
-}
-```
+## v1.1.0 Tool List
 
-## Comparison
+| Tool | Description |
+|------|-------------|
+| `memory` | Original memory-manager call |
+| `memory_fragment_add` | Add fragment |
+| `memory_fragment_search` | Search fragments (with temperature randomness) |
+| `memory_fragment_stats` | View statistics |
+| `memory_fragment_view` | View fragment list |
+| `memory_fragment_delete` | Delete fragment |
+| `memory_fragment_compact` | Compact database |
 
-| Feature | StarMenory | opencode-memory (carson2222) |
-|---------|------------|------------------------------|
-| Type | Plugin + Skill | Skill Only |
-| Write | ✅ Full CRUD | ❌ Read-only |
-| Storage | ✅ memory.json | ❌ OpenCode DB |
-| Auto Injection | ✅ system.transform | ❌ None |
-| Keyword Detection | ✅ chat.message | ❌ None |
+### Temperature Guide
+
+| Range | Behavior |
+|-------|----------|
+| 0.0-0.3 | High determinism, only high-weight fragments |
+| 0.4-0.6 | Balanced mode |
+| 0.7-1.0 | High randomness, may return low-weight fragments |
+
+---
 
 ## License
 
