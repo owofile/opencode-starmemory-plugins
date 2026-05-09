@@ -17,8 +17,11 @@
 ---
 
 <p align="center">
-  <img src="docs/自动记录相关记忆.gif" alt="自动记录演示" width="800"/>
-  <img src="docs/手动查询记忆演示.gif" alt="手动查询演示" width="800"/>
+  <img src="docs/自动记录相关记忆.gif" alt="自动记录碎片记忆" width="800"/>
+  <br/><em>自动记录碎片记忆</em>
+  <br/><br/>
+  <img src="docs/手动查询记忆演示.gif" alt="手动查询记忆" width="800"/>
+  <br/><em>手动查询记忆</em>
 </p>
 
 ---
