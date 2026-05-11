@@ -163,6 +163,29 @@ mode?: "gentle" | "auto" | "aggressive"  # 整理模式
 
 返回：当前碎片数量、最大容量、冷热数据阈值、上次整理时间、建议
 
+### memory_fragment_diagnosis
+
+诊断记忆状态，输出配置文件、碎片统计、饼图和AI建议。
+
+```
+无参数
+```
+
+**返回**：
+- 配置文件信息（last_compact, cold_data_days等）
+- 当前碎片总数和状态
+- 按 category 分类的 ASCII 饼图
+- AI 清理建议
+
+**使用场景**：
+- 用户询问"记忆状态"、"记忆诊断"时
+- 需要了解当前碎片数量和整理时机时
+
+**使用示例**：
+```
+memory_fragment_diagnosis
+```
+
 ### memory_fragment_restore
 
 从 SQLite 归档恢复碎片。
@@ -215,6 +238,22 @@ AI: 调用 memory_manual keyword="工具列表"
 ```
 你: 帮我整理记忆碎片
 AI: 调用 memory_fragment_compact mode="auto"
+```
+
+### 场景5：诊断记忆状态
+
+```
+你: 查看记忆状态
+AI: 调用 memory_fragment_diagnosis
+```
+
+### 场景6：需要了解碎片情况
+
+```
+你: 我的碎片记忆现在有多少条？
+AI: 调用 memory_fragment_diagnosis
+       ↓
+AI: [输出完整诊断报告，包含碎片数量、饼图、建议]
 ```
 
 ## 与 memory Skill 的区别
