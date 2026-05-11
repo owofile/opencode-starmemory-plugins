@@ -117,6 +117,17 @@
       "description": "查看归档状态和建议",
       "returns": ["current_count", "json_max_count", "cold_data_days", "cold_data_age_days", "last_compact", "days_since_compact", "suggestion"]
     },
+    "memory_fragment_diagnosis": {
+      "description": "诊断记忆状态，输出配置文件、碎片统计、饼图和AI建议",
+      "params": {},
+      "output": {
+        "config": "配置文件信息（last_compact, cold_data_days等）",
+        "status": "碎片总数和状态",
+        "pie_chart": "按category分类的ASCII饼图",
+        "suggestion": "AI清理建议"
+      },
+      "ai_usage": "当用户询问记忆情况、记忆状态、是否需要清理时调用此工具"
+    },
     "memory_manual": {
       "description": "这个记忆插件的说明书。AI在需要了解插件结构、工具用法、架构逻辑时使用此工具查询",
       "params": {

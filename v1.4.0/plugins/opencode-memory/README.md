@@ -235,6 +235,24 @@ memory_fragment_deep_search query=旧记忆 limit=5
 - 需要找回很久以前的记忆时
 - AI判断需要使用深度查询时
 
+#### memory_fragment_diagnosis
+诊断记忆状态，输出配置文件、碎片统计、饼图和AI建议。
+
+```
+memory_fragment_diagnosis
+```
+
+**输出内容：**
+- 配置文件信息（last_compact, cold_data_days等）
+- 当前碎片总数和状态
+- 按 category 分类的 ASCII 饼图
+- AI 清理建议
+
+**适用场景：**
+- 用户询问"记忆状态"、"记忆诊断"时
+- 需要了解当前碎片数量和整理时机时
+- AI 自动判断是否需要运行记忆清理时
+
 ---
 
 ### 同义词映射工具 (synonym_map_*)
