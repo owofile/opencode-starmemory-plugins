@@ -1,0 +1,215 @@
+{
+  "name": "OpenCode Memory Plugin",
+  "version": "1.0.0",
+  "description": "分层记忆管理系统：长期记忆 + 碎片记忆 + SQLite归档循环",
+  "file_structure": {
+    "plugin_root": "opencode-memory/",
+    "files": {
+      "index.js": "主插件（含所有工具定义）",
+      "manual.json": "说明书（JSON格式）",
+      "fragment-config.json": "碎片整理配置",
+      "README.md": "说明书备份（Markdown格式）"
+    },
+    "external": {
+      "path": "external/",
+      "files": {
+        "fragment_archive.db": "SQLite归档数据库",
+        "sqlite-manager.js": "SQLite key-value存储工具",
+        "fragment-compactor.js": "碎片整理脚本",
+        "fragment-restorer.js": "归档恢复脚本",
+        "fragment-deep-search.js": "深度搜索脚本",
+        "package.json": "npm依赖配置"
+      }
+    }
+  },
+  "data_storage": {
+    "hot_data": {
+      "memory.json": "长期记忆（用户偏好、规则、项目等）",
+      "fragments.json": "碎片记忆（热数据，JSON格式）",
+      "associations_map.json": "同义词映射表"
+    },
+    "cold_data": {
+      "path": "opencode-memory/external/fragment_archive.db",
+      "type": "SQLite数据库"
+    }
+  },
+  "tools": {
+    "memory": {
+      "description": "长期记忆管理工具",
+      "actions": ["view", "add", "update", "delete", "search"],
+      "categories": {
+        "user.preferences": "用户偏好",
+        "strict.rules": "严格规则",
+        "strict.forbidden": "禁止命令",
+        "projects": "项目"
+      }
+    },
+    "memory_fragment_add": {
+      "description": "添加碎片记忆",
+      "params": {
+        "content": "记忆内容（必填）",
+        "associations": "关键词数组（可选）",
+        "category": "分类，默认general（可选）",
+        "layer": "层，surface或deep（可选）",
+        "source": "来源，explicit或inferred（可选）"
+      }
+    },
+    "memory_fragment_view": {
+      "description": "查看碎片列表",
+      "params": {
+        "category": "按分类筛选（可选）",
+        "layer": "按层筛选（可选）"
+      }
+    },
+    "memory_fragment_search": {
+      "description": "普通搜索（只查JSON热数据）",
+      "params": {
+        "query": "搜索关键词",
+        "limit": "返回数量限制（可选）"
+      }
+    },
+    "memory_fragment_update": {
+      "description": "更新碎片",
+      "params": {
+        "id": "碎片ID（必填）",
+        "content": "新内容（可选）",
+        "weight": "权重0-1（可选）",
+        "layer": "层（可选）"
+      }
+    },
+    "memory_fragment_delete": {
+      "description": "删除碎片",
+      "params": {
+        "id": "碎片ID（必填）"
+      }
+    },
+    "memory_fragment_stats": {
+      "description": "查看碎片统计"
+    },
+    "memory_fragment_compact": {
+      "description": "整理碎片，将冷数据归档到SQLite",
+      "params": {
+        "mode": "gentle/auto/aggressive（可选）"
+      },
+      "modes": {
+        "gentle": "只归档60天前创建且访问<2次的记忆",
+        "auto": "30天未访问或60天前创建（默认）",
+        "aggressive": "15天未访问或45天前创建或访问<3次"
+      }
+    },
+    "memory_fragment_restore": {
+      "description": "从归档恢复碎片",
+      "params": {
+        "action": "list/id/query（必填）",
+        "param": "ID或关键词（必填）",
+        "limit": "返回数量（可选）"
+      }
+    },
+    "memory_fragment_deep_search": {
+      "description": "深度搜索（查JSON+归档，自动恢复）",
+      "params": {
+        "query": "搜索关键词",
+        "limit": "返回数量限制（可选）"
+      },
+      "workflow": ["先查JSON热数据", "结果不足时查SQLite归档", "找到后自动恢复到JSON", "返回合并结果"]
+    },
+    "memory_fragment_archive_status": {
+      "description": "查看归档状态和建议",
+      "returns": ["current_count", "json_max_count", "cold_data_days", "cold_data_age_days", "last_compact", "days_since_compact", "suggestion"]
+    },
+    "memory_manual": {
+      "description": "这个记忆插件的说明书。AI在需要了解插件结构、工具用法、架构逻辑时使用此工具查询",
+      "params": {
+        "keyword": "查询关键词（可选）"
+      }
+    },
+    "synonym_map_view": {
+      "description": "查看同义词映射表"
+    },
+    "synonym_map_add": {
+      "description": "添加同义词",
+      "params": {
+        "key": "关键词",
+        "synonyms": "同义词数组"
+      }
+    },
+    "synonym_map_update": {
+      "description": "更新同义词（完全替换）",
+      "params": {
+        "key": "关键词",
+        "synonyms": "新的同义词数组"
+      }
+    },
+    "synonym_map_delete": {
+      "description": "删除同义词",
+      "params": {
+        "key": "要删除的关键词"
+      }
+    },
+    "memory_sqlite": {
+      "description": "SQLite key-value存储工具（测试用）",
+      "params": {
+        "action": "set/get/delete/list",
+        "key": "键名",
+        "value": "值"
+      }
+    }
+  },
+  "memory_cycle": {
+    "description": "记忆循环流程",
+    "steps": [
+      "用户添加记忆 → fragments.json（热数据）",
+      "普通查询 → memory_fragment_search",
+      "深度查询 → memory_fragment_deep_search → 自动恢复",
+      "定期整理 → memory_fragment_compact → SQLite归档",
+      "需要时 → 深度查询 → 自动恢复 → 重新进入循环"
+    ]
+  },
+  "config": {
+    "fragment-config.json": {
+      "json_max_count": "JSON最大碎片数量（默认200）",
+      "cold_data_days": "超过N天未访问视为冷数据（默认30）",
+      "cold_data_age_days": "超过N天前创建视为冷数据（默认60）",
+      "last_compact": "上次整理时间（自动更新）"
+    }
+  },
+  "ai_usage": {
+    "description": "AI使用指南",
+    "situations": [
+      {
+        "condition": "碎片数量接近上限",
+        "action": "调用 memory_fragment_compact 整理"
+      },
+      {
+        "condition": "普通搜索找不到记忆",
+        "action": "使用 memory_fragment_deep_search 深度查询"
+      },
+      {
+        "condition": "需要恢复特定旧记忆",
+        "action": "使用 memory_fragment_restore action=query"
+      },
+      {
+        "condition": "用户询问如何使用记忆系统",
+        "action": "使用 memory_manual 查询说明书"
+      }
+    ]
+  },
+  "troubleshooting": [
+    {
+      "q": "碎片记忆太多查询变慢怎么办？",
+      "a": "使用 memory_fragment_compact 整理冷数据到 SQLite"
+    },
+    {
+      "q": "一条旧记忆被归档了，还能找回来吗？",
+      "a": "可以，用 memory_fragment_deep_search 或 memory_fragment_restore"
+    },
+    {
+      "q": "怎么调整冷数据的判定标准？",
+      "a": "编辑 fragment-config.json 中的 cold_data_days 和 cold_data_age_days"
+    },
+    {
+      "q": "为什么有两条一样的记忆？",
+      "a": "可能是 deep_search 恢复后又手动恢复了同一ID的记录，可以用 memory_fragment_delete 删除重复"
+    }
+  ]
+}

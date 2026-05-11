@@ -1,7 +1,7 @@
 {
   "version": 2,
   "user": {
-    "preferences": {}
+    "preferences": null
   },
   "strict": {
     "forbiddenCommands": [
@@ -30,11 +30,7 @@
         "severity": "critical"
       }
     ],
-    "rules": [
-      "执行删除操作前必须确认路径",
-      "执行危险命令前必须使用 --WhatIf 或类似预览参数",
-      "涉及多文件操作前先列出将受影响文件"
-    ]
+    "rules": []
   },
   "projects": {}
 }
