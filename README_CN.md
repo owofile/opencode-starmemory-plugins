@@ -131,12 +131,27 @@ StarMenory 采用**分层记忆管理系统**，热数据与冷数据循环流�
 
 ---
 
+## 终端 TUI（v2.1.0）
+
+全新的终端内记忆管理界面，无需外部浏览器：
+
+- 输入 `/memory`（或快捷键 `ctrl+shift+m`）打开全屏管理页，三个视图：
+  - **overview 概览**：readout 键值读数 + `████░░░░` 激活度条
+  - **mesh 记忆网络**：callout 走线注记 + 同义词关联浏览
+  - **list 列表**：ps 式对齐表头，按召回热度分页
+- `e` 打开管理菜单：查看全文 / 删除 / 提高权重（原子写 fragments.json）
+- 主界面底部 + 侧栏常驻状态 chip（可开关）
+- `/memory-settings` 调整各项开关（插槽 / 快捷键 / 打字机动效）
+- 动效克制：打字机入场、条形生长、数据变更三档高亮渐退——入场结束即停时钟，零常驻开销
+
+---
+
 ## 安装
 
 复制以下命令让 AI 自动安装：
 
 ```
-安装 StarMenory v2.0.0：https://github.com/owofile/opencode-starmemory-plugins/tree/main/v2.0.0
+安装 StarMenory v2.1.0：https://github.com/owofile/opencode-starmemory-plugins/tree/main/v2.1.0
 ```
 
 ---
@@ -145,16 +160,19 @@ StarMenory 采用**分层记忆管理系统**，热数据与冷数据循环流�
 
 ```
 opencode-starmemory-plugins/
-├── v2.0.0/                      # 推荐版本（最新）
+├── v2.1.0/                      # 推荐版本（最新）
 │   ├── INSTALL.md
 │   ├── memory.json              # 默认配置文件
 │   ├── plugins/opencode-memory/
+│   │   ├── index.js
+│   │   └── tui.tsx              # 终端 TUI 管理界面（v2.1.0）
 │   ├── plugins/opencode-memory/external/
 │   ├── skills/
 │   │   ├── memory-manager/
 │   │   └── memory-fragment/
 │   ├── associations_map.json
 │   └── opencode.json
+├── v2.0.0/
 ├── v1.4.0/
 ├── v1.3.1/
 ├── v1.3.0/

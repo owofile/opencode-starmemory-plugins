@@ -131,12 +131,27 @@ StarMenory uses a **layered memory management system** with hot and cold data ci
 
 ---
 
+## Terminal TUI (v2.1.0)
+
+A new in-terminal memory dashboard, no external browser needed:
+
+- `/memory` (or `ctrl+shift+m`) opens a fullscreen management page with three views:
+  - **overview** — readout-style key/value stats with activation bars `████░░░░`
+  - **mesh** — callout-ruled cluster headings + synonym association browsing
+  - **list** — `ps`-style aligned table, paged by recall heat
+- `e` opens the management menu: view full text / delete / raise weight (atomic JSON writes)
+- Resident status chips in the footer & sidebar (toggleable)
+- `/memory-settings` for per-feature toggles (slots, hotkey, typewriter intro)
+- Restrained motion: typewriter entrance, growing bars, three-tier fade on data change — the clock stops after the intro, zero idle overhead
+
+---
+
 ## Installation
 
 Copy and send this to AI for automatic installation:
 
 ```
-Install StarMenory v2.0.0: https://github.com/owofile/opencode-starmemory-plugins/tree/main/v2.0.0
+Install StarMenory v2.1.0: https://github.com/owofile/opencode-starmemory-plugins/tree/main/v2.1.0
 ```
 
 ---
@@ -145,16 +160,19 @@ Install StarMenory v2.0.0: https://github.com/owofile/opencode-starmemory-plugin
 
 ```
 opencode-starmemory-plugins/
-├── v2.0.0/                      # Recommended version (Latest)
+├── v2.1.0/                      # Recommended version (Latest)
 │   ├── INSTALL.md
 │   ├── memory.json              # Default configuration file
 │   ├── plugins/opencode-memory/
+│   │   ├── index.js
+│   │   └── tui.tsx              # Terminal TUI dashboard (v2.1.0)
 │   ├── plugins/opencode-memory/external/
 │   ├── skills/
 │   │   ├── memory-manager/
 │   │   └── memory-fragment/
 │   ├── associations_map.json
 │   └── opencode.json
+├── v2.0.0/
 ├── v1.4.0/
 ├── v1.3.1/
 ├── v1.3.0/
