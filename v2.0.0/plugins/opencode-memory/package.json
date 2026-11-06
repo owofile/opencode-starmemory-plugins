@@ -1,0 +1,12 @@
+{
+  "name": "opencode-memory",
+  "version": "2.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./index.js"
+  },
+  "dependencies": {
+    "@opencode/plugin": "2.2.0"
+  }
+}

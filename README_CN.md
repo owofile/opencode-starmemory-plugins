@@ -136,7 +136,7 @@ StarMenory 采用**分层记忆管理系统**，热数据与冷数据循环流�
 复制以下命令让 AI 自动安装：
 
 ```
-安装 StarMenory v1.4.0：https://github.com/owofile/opencode-starmemory-plugins/tree/main/v1.4.0
+安装 StarMenory v2.0.0：https://github.com/owofile/opencode-starmemory-plugins/tree/main/v2.0.0
 ```
 
 ---
@@ -145,15 +145,17 @@ StarMenory 采用**分层记忆管理系统**，热数据与冷数据循环流�
 
 ```
 opencode-starmemory-plugins/
-├── v1.4.0/                      # 推荐版本（最新）
+├── v2.0.0/                      # 推荐版本（最新）
 │   ├── INSTALL.md
 │   ├── memory.json              # 默认配置文件
 │   ├── plugins/opencode-memory/
+│   ├── plugins/opencode-memory/external/
 │   ├── skills/
 │   │   ├── memory-manager/
 │   │   └── memory-fragment/
 │   ├── associations_map.json
 │   └── opencode.json
+├── v1.4.0/
 ├── v1.3.1/
 ├── v1.3.0/
 ├── v1.2.0/

@@ -136,7 +136,7 @@ StarMenory uses a **layered memory management system** with hot and cold data ci
 Copy and send this to AI for automatic installation:
 
 ```
-Install StarMenory v1.4.0: https://github.com/owofile/opencode-starmemory-plugins/tree/main/v1.4.0
+Install StarMenory v2.0.0: https://github.com/owofile/opencode-starmemory-plugins/tree/main/v2.0.0
 ```
 
 ---
@@ -145,15 +145,17 @@ Install StarMenory v1.4.0: https://github.com/owofile/opencode-starmemory-plugin
 
 ```
 opencode-starmemory-plugins/
-├── v1.4.0/                      # Recommended version (Latest)
+├── v2.0.0/                      # Recommended version (Latest)
 │   ├── INSTALL.md
 │   ├── memory.json              # Default configuration file
 │   ├── plugins/opencode-memory/
+│   ├── plugins/opencode-memory/external/
 │   ├── skills/
 │   │   ├── memory-manager/
 │   │   └── memory-fragment/
 │   ├── associations_map.json
 │   └── opencode.json
+├── v1.4.0/
 ├── v1.3.1/
 ├── v1.3.0/
 ├── v1.2.0/
