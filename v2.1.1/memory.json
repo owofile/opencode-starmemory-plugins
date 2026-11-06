@@ -1,0 +1,36 @@
+{
+  "version": 2,
+  "user": {
+    "preferences": null
+  },
+  "strict": {
+    "forbiddenCommands": [
+      {
+        "id": "no-rf-root",
+        "pattern": "rm\\s+-rf\\s+/",
+        "description": "禁止递归删除根目录",
+        "severity": "critical"
+      },
+      {
+        "id": "no-rf-drive",
+        "pattern": "rm\\s+-rf\\s+[A-Za-z]:",
+        "description": "禁止删除整个盘符",
+        "severity": "critical"
+      },
+      {
+        "id": "no-format-drive",
+        "pattern": "format\\s+[A-Za-z]:",
+        "description": "禁止格式化盘符",
+        "severity": "critical"
+      },
+      {
+        "id": "no-del-system",
+        "pattern": "del\\s+/[fqs]\\s+/",
+        "description": "禁止强制删除系统目录",
+        "severity": "critical"
+      }
+    ],
+    "rules": []
+  },
+  "projects": {}
+}
