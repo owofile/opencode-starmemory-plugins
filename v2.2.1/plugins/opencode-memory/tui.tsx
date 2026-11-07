@@ -1316,12 +1316,13 @@ export default Plugin.define({
 
         // ---- 召回进度条行（统一面板内 recall 行：label + 渐变bar + 1字符手柄 + 档位名，整条可拖） ----
         // props.barW/valW 由父 MemoryPanel 算好传入（number 值，非 signal：父不因 recall 动画重渲染）
-        // ---- 召回滑块渐变（主题 Morandi 色，往 MAX 变深）----
-        // 0% 浅灰绿（低档/浅）→ 50% 黄（平衡）→ 100% 深红（MAX/深）。语义色相 + 明度随档位加深。
+        // ---- 召回滑块渐变（主题语义色，往 MAX 变深）----
+        // 纯语义色：0% 绿（低档）→ 50% 黄（平衡）→ 100% 红（MAX，最深）。对齐 visual-cache hitColor（纯绿/黄/红）。
+        // 之前端点用 lerpHex(muted, ok, 0.5)（灰绿中间≈灰）和 dimColor(errC, 0.85)（压暗）→ 低档看起来像灰 → 改纯色。
         const recallGrad = [
-            { at: 0, c: lerpHex(muted, ok, 0.5) },   // 浅灰绿（低档，浅）
-            { at: 50, c: warnC },                    // 黄（平衡）
-            { at: 100, c: dimColor(errC, 0.85) },    // 深红（MAX，最深）
+            { at: 0, c: ok },       // 绿（低档）
+            { at: 50, c: warnC },   // 黄（平衡）
+            { at: 100, c: errC },   // 红（MAX，最深）
         ];
         const recallColor = (pct: number): string => {
             const p = Math.max(0, Math.min(100, pct));
