@@ -131,7 +131,7 @@ StarMenory uses a **layered memory management system** with hot and cold data ci
 
 ---
 
-## Terminal TUI (v2.2.0)
+## Terminal TUI (v2.2.1)
 
 An in-terminal memory dashboard, no external browser needed:
 
@@ -143,6 +143,11 @@ An in-terminal memory dashboard, no external browser needed:
 - Resident status chips in the footer & sidebar (toggleable)
 - `/memory-settings` for per-feature toggles (slots, hotkey, typewriter intro)
 - Restrained motion: typewriter entrance, growing bars, three-tier fade on data change — the clock stops after the intro, zero idle overhead
+
+### v2.2.1 diagnostics & recall history
+- Log system redesign: `memory-plugin.log` unified diagnostics (levels + module recall/hook/tui/storage/tool + events + pre-write rotation 1MB→.1), `logRecallHook` unified dual-write entry
+- `/memory` recall Tab split-pane: left recall settings + right recall history, arrow-key reading (↑↓ select / Enter toggle / → expand / ← collapse), one-line summary + scroll viewport (smooth paging, reusing list Tab pattern)
+- Removed `session.panel` recall history panel (`/recall` command + RecallHistoryPanel, Esc/× close didn't work)
 
 ### v2.2.0 recall visibility
 - Recall hint card in the `composer.top` slot: ⭐ N items injected + ▶ expand to view content + × dismiss, auto-hides after 8s without interaction
@@ -162,7 +167,7 @@ An in-terminal memory dashboard, no external browser needed:
 Copy and send this to AI for automatic installation:
 
 ```
-Install StarMenory v2.2.0: https://github.com/owofile/opencode-starmemory-plugins/tree/main/v2.2.0
+Install StarMenory v2.2.1: https://github.com/owofile/opencode-starmemory-plugins/tree/main/v2.2.1
 ```
 
 ---
@@ -171,12 +176,12 @@ Install StarMenory v2.2.0: https://github.com/owofile/opencode-starmemory-plugin
 
 ```
 opencode-starmemory-plugins/
-├── v2.2.0/                      # Recommended version (Latest)
+├── v2.2.1/                      # Recommended version (Latest)
 │   ├── INSTALL.md
 │   ├── memory.json              # Default configuration file
 │   ├── plugins/opencode-memory/
 │   │   ├── index.js
-│   │   └── tui.tsx              # Terminal TUI dashboard (v2.2.0)
+│   │   └── tui.tsx              # Terminal TUI dashboard (v2.2.1)
 │   ├── plugins/opencode-memory/external/
 │   ├── skills/
 │   │   ├── memory-manager/

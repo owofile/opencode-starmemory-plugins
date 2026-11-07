@@ -1,0 +1,14 @@
+{
+  "json_max_count": 200,
+  "cold_data_days": 30,
+  "cold_data_age_days": 60,
+  "last_compact": "2026-08-24T07:04:26.325Z",
+  "general": {
+    "lang": "zh"
+  },
+  "tui": {
+    "footer_slot": true,
+    "sidebar_slot": true,
+    "hotkey": true
+  }
+}
