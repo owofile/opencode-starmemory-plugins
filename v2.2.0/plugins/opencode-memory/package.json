@@ -1,0 +1,13 @@
+{
+  "name": "opencode-memory",
+  "version": "2.2.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./index.js",
+    "./tui": "./tui.tsx"
+  },
+  "dependencies": {
+    "@opencode/plugin": "2.2.0"
+  }
+}

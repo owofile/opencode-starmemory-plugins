@@ -131,7 +131,7 @@ StarMenory uses a **layered memory management system** with hot and cold data ci
 
 ---
 
-## Terminal TUI (v2.1.1)
+## Terminal TUI (v2.2.0)
 
 An in-terminal memory dashboard, no external browser needed:
 
@@ -143,6 +143,12 @@ An in-terminal memory dashboard, no external browser needed:
 - Resident status chips in the footer & sidebar (toggleable)
 - `/memory-settings` for per-feature toggles (slots, hotkey, typewriter intro)
 - Restrained motion: typewriter entrance, growing bars, three-tier fade on data change — the clock stops after the intro, zero idle overhead
+
+### v2.2.0 recall visibility
+- Recall hint card in the `composer.top` slot: ⭐ N items injected + ▶ expand to view content + × dismiss, auto-hides after 8s without interaction
+- Self-reference loop fix: synthetic recall messages no longer pollute context query extraction (skip synthetic + `isRecallBlock` detection + tier-6 relMin 0.60)
+- Context zero-pollution injection: prompt synthetic is the reliable primary channel, context hook is diagnostic-only (`injected:false`), no duplicate recall blocks
+- Dynamic pop animation documented as **known limitation**: property/structural animations don't respond in the `composer.top` slot boundary (renderer edge), card stays statically visible
 
 ### v2.1.1 dashboard polish
 - Dashboard styling: panel borders, edge-aligned HUD rows, dynamic-ruled section headers, bracket activation bars `[████░░]` in three-tier semantic colors, ellipsis truncation `…`
@@ -156,7 +162,7 @@ An in-terminal memory dashboard, no external browser needed:
 Copy and send this to AI for automatic installation:
 
 ```
-Install StarMenory v2.1.1: https://github.com/owofile/opencode-starmemory-plugins/tree/main/v2.1.1
+Install StarMenory v2.2.0: https://github.com/owofile/opencode-starmemory-plugins/tree/main/v2.2.0
 ```
 
 ---
@@ -165,18 +171,19 @@ Install StarMenory v2.1.1: https://github.com/owofile/opencode-starmemory-plugin
 
 ```
 opencode-starmemory-plugins/
-├── v2.1.1/                      # Recommended version (Latest)
+├── v2.2.0/                      # Recommended version (Latest)
 │   ├── INSTALL.md
 │   ├── memory.json              # Default configuration file
 │   ├── plugins/opencode-memory/
 │   │   ├── index.js
-│   │   └── tui.tsx              # Terminal TUI dashboard (v2.1.1)
+│   │   └── tui.tsx              # Terminal TUI dashboard (v2.2.0)
 │   ├── plugins/opencode-memory/external/
 │   ├── skills/
 │   │   ├── memory-manager/
 │   │   └── memory-fragment/
 │   ├── associations_map.json
 │   └── opencode.json
+├── v2.1.1/
 ├── v2.1.0/
 ├── v2.0.0/
 ├── v1.4.0/

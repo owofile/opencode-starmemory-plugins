@@ -131,7 +131,7 @@ StarMenory 采用**分层记忆管理系统**，热数据与冷数据循环流�
 
 ---
 
-## 终端 TUI（v2.1.1）
+## 终端 TUI（v2.2.0）
 
 全新的终端内记忆管理界面，无需外部浏览器：
 
@@ -143,6 +143,12 @@ StarMenory 采用**分层记忆管理系统**，热数据与冷数据循环流�
 - 主界面底部 + 侧栏常驻状态 chip（可开关）
 - `/memory-settings` 调整各项开关（插槽 / 快捷键 / 打字机动效）
 - 动效克制：打字机入场、条形生长、数据变更三档高亮渐退——入场结束即停时钟，零常驻开销
+
+### v2.2.0 召回可见性
+- `composer.top` slot 召回提示卡片：⭐ 注入 N 条 + ▶ 展开看内容 + × 关闭，8s 无交互自动消失
+- 自引用循环修复：synthetic 召回消息不再污染 context query 提取（跳过 synthetic + `isRecallBlock` 检测 + 档位6 relMin 0.60）
+- context 零污染注入：prompt synthetic 是可靠主通道，context 钩子仅诊断（`injected:false`），无重复召回块
+- 动态弹出动画记录为**已知限制**：属性/结构动画在 `composer.top` slot 边界不响应（渲染器边界），卡片稳定全显
 
 ### v2.1.1 仪表板打磨
 - 仪表板样式：面板边框、HUD 行左右贴边、动态走线分区头、括号激活条 `[████░░]`（三档语义色）、省略号 `…` 截断
@@ -156,7 +162,7 @@ StarMenory 采用**分层记忆管理系统**，热数据与冷数据循环流�
 复制以下命令让 AI 自动安装：
 
 ```
-安装 StarMenory v2.1.1：https://github.com/owofile/opencode-starmemory-plugins/tree/main/v2.1.1
+安装 StarMenory v2.2.0：https://github.com/owofile/opencode-starmemory-plugins/tree/main/v2.2.0
 ```
 
 ---
@@ -165,18 +171,19 @@ StarMenory 采用**分层记忆管理系统**，热数据与冷数据循环流�
 
 ```
 opencode-starmemory-plugins/
-├── v2.1.1/                      # 推荐版本（最新）
+├── v2.2.0/                      # 推荐版本（最新）
 │   ├── INSTALL.md
 │   ├── memory.json              # 默认配置文件
 │   ├── plugins/opencode-memory/
 │   │   ├── index.js
-│   │   └── tui.tsx              # 终端 TUI 管理界面（v2.1.1）
+│   │   └── tui.tsx              # 终端 TUI 管理界面（v2.2.0）
 │   ├── plugins/opencode-memory/external/
 │   ├── skills/
 │   │   ├── memory-manager/
 │   │   └── memory-fragment/
 │   ├── associations_map.json
 │   └── opencode.json
+├── v2.1.1/
 ├── v2.1.0/
 ├── v2.0.0/
 ├── v1.4.0/
