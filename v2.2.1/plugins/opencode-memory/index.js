@@ -314,6 +314,7 @@ function saveFragments(fragments) {
 // ===== 温度系统（核心系统，独立于自动召回） =====
 const MAX_USE_HISTORY = 20;   // use_history 数组上限
 const RECALL_BOOST = 0.15;    // 每次命中 base_activation 升温
+const CORROBORATE_THRESHOLD = 3; // 自动佐证：被召回 ≥3 次 → inferred→corroborated（证据积累，P3 佐证加权生效）
 const DAY_MS = 24 * 60 * 60 * 1000;
 const CONSOLIDATION_DAYS = 7;   // transient→consolidated 延迟窗口（天）
 const RECONFIRM_DAYS = 3;       // 临近过期标记窗口（天）
@@ -347,7 +348,29 @@ function applyRecall(f, now = new Date().toISOString()) {
     f.access_count = (f.access_count || 0) + 1;
     f.last_accessed_at = now;
     f.base_activation = Math.min(1, (typeof f.base_activation === "number" ? f.base_activation : 0) + RECALL_BOOST);
+    // P5 O1b 自动佐证：记忆被反复召回（≥3 次）→ 证据积累，inferred→corroborated（P3 佐证加权 +0.05 生效）。
+    // 多次召回本身佐证记忆价值，无需用户手动标记；仅升级 source_type，不改 confidence（保守，避免过度改变）。
+    if (f.access_count >= CORROBORATE_THRESHOLD && (f.source_type || "inferred") === "inferred") {
+        f.source_type = "corroborated";
+    }
     return f;
+}
+
+// P5 O1b 一次性迁移：现有碎片若已累计召回 ≥3 次但仍 inferred（历史数据未享受自动佐证），立即升级为 corroborated。
+// 让 P3 佐证加权马上对已有数据生效，无需等下次召回。仅改 source_type，不改 confidence（保守可逆）。
+function migrateCorroborated() {
+    try {
+        const fragments = loadFragments();
+        let upgraded = 0;
+        for (const f of fragments) {
+            if ((f.source_type || "inferred") === "inferred" && (f.access_count || 0) >= CORROBORATE_THRESHOLD) {
+                f.source_type = "corroborated";
+                upgraded++;
+            }
+        }
+        if (upgraded > 0) saveFragments(fragments);
+        return upgraded;
+    } catch { return 0; }
 }
 
 function updateRecall(id) {
@@ -693,6 +716,12 @@ export default Plugin.define({
         // 传 { "enabled": false } 时不注册任何工具、不注入记忆，等价于完全禁用该插件。
         // 未配置 options 时默认启用。
         if (ctx.options?.enabled === false) return;
+
+        // P5 O1b 自动佐证迁移：启动时给已累计 ≥3 次召回但仍 inferred 的碎片升级为 corroborated（P3 佐证加权生效）
+        const migrated = migrateCorroborated();
+        if (migrated > 0) {
+            try { log("INFO", "storage", "migrate-corroborated", { upgraded: migrated }); } catch {}
+        }
 
         await ctx.tool.transform((editor) => {
             editor.add({
