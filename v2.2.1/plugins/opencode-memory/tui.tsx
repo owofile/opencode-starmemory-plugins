@@ -1373,13 +1373,19 @@ export default Plugin.define({
             // 彩虹猫硬色带（可选模式，设置 meteor_rainbow 切换）
             const RAINBOW = ["#ff3b3b", "#ff9f1a", "#ffe600", "#3bff6b", "#1ac8ff", "#6b3bff", "#ff3bd4"] as const;
             // 设置开（默认开）且档位=MAX → 立即进入流星；拖回非 MAX 立即恢复
+            let meteorStartFrame = -1; // 流星出现瞬间的帧基准（拖到MAX时锁定→从头开始流，接得上）
+            let meteorWasOn = false;
             const meteorOn = (): boolean => {
-                if (settings.get().meteor === false) return false; // 设置关
-                return recallTarget() === 6; // 拖到 MAX 立即出现，拖回即消失
+                const on = settings.get().meteor !== false && recallTarget() === 6; // 设置关→false；MAX→true
+                if (on && !meteorWasOn) meteorStartFrame = recallFrame(); // 出现瞬间：重置相位（核心从左侧开始流）
+                meteorWasOn = on;
+                return on;
             };
-            // 核位置：0..barW-1 循环移动（约 2.4s 划过一次，从容优雅）
+            // 流星自身帧号：从出现瞬间起算（非全局帧），保证每次拖到MAX都从头接入
+            const meteorFrame = (): number => Math.max(0, recallFrame() - (meteorStartFrame >= 0 ? meteorStartFrame : 0));
+            // 核位置：0..barW-1 循环移动（约 2.4s 划过一次，从容优雅；从左侧开始）
             const meteorCorePos = (): number => {
-                const cycle = ((recallFrame() * 33) / 2400) % 1;
+                const cycle = ((meteorFrame() * 33) / 2400) % 1;
                 return cycle * Math.max(1, barW() - 1);
             };
             // 流星格：双层叠加 —— bg 深蓝流光底 + fg 流星（核/拖尾，柔光呼吸，环形无缝循环）
@@ -1390,7 +1396,7 @@ export default Plugin.define({
                 const wave = 0.5 + 0.5 * Math.cos(2 * Math.PI * ((i - core) / span));
                 const bg = lerpHex(METEOR_BG_DARK, METEOR_BG_LIGHT, Math.pow(wave, 2));
                 // —— 单一连贯光波：波长=全条（相邻格相位差小，无噪点），沿拖尾缓缓流动，接缝处连续 ——
-                const frameMs = recallFrame() * 33;
+                const frameMs = meteorFrame() * 33; // 从出现瞬间起算（每次拖MAX从头接入）
                 const breath = 0.5 + 0.5 * Math.sin(2 * Math.PI * (frameMs / 1200) + 2 * Math.PI * (i / span));
                 // —— 环形距离：核绕条一圈，拖尾跨接缝连续（无跳变，循环流畅）——
                 const ad = ((i - core) % span + span) % span; // 沿移动方向 i 在核前方距离（0..span-1）
