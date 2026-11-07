@@ -24,6 +24,7 @@ const SYNONYM_MAP_PATH = path.join(CONFIG_DIR, "associations_map.json");
 const FRAGMENT_CONFIG_PATH = path.join(PLUGIN_DIR, "fragment-config.json");
 const RECALL_RUNTIME_PATH = path.join(CONFIG_DIR, "recall-runtime.json"); // P6 自动召回运行时档位（滑块写/钩子读）
 const AGENTS_PATH = path.join(CONFIG_DIR, "AGENTS.md"); // 全局规则文件（opencode 自动注入 system prompt）
+const AGENTS_SEGMENTS_PATH = path.join(CONFIG_DIR, "agents-segments.json"); // 说明片段：开关 + 自定义内容（开=注入 AGENTS.md / 关=隐藏）
 const MEMORY_PATH = path.join(CONFIG_DIR, "memory.json"); // USER PREFERENCES/STRICT 数据（字段默认值来源）
 
 const PER_PAGE = 14;
@@ -251,6 +252,29 @@ const AGENT_FIELD_OPTIONS: Record<string, string[]> = {
     language: ["中文", "English"],
 };
 
+// ---------- 说明片段（P8：一段一段、可开关、可自定义；开=注入 AGENTS.md，关=隐藏） ----------
+// 与模板（整体替换）不同：片段是独立可开关段落，开关状态 + 自定义内容存 agents-segments.json。
+// 渲染时启用的片段拼进 AGENTS.md 的标记区内（标记前后为用户基础内容，模板/字段/手动编辑不受影响）。
+const SEG_MARK_START = "<!-- starmemory:segments -->";
+const SEG_MARK_END = "<!-- /starmemory:segments -->";
+const AGENTS_SEGMENTS: Array<{ id: string; i18n: string; defEnabled: boolean; defContent: string }> = [
+    {
+        id: "utf8",
+        i18n: "agentsSegUtf8",
+        defEnabled: true,
+        defContent: [
+            "## Windows 编码（UTF-8）",
+            "",
+            "PowerShell 5.1 中文系统默认代码页 GBK（gb2312 / chcp 936），不是 UTF-8，shell 里碰中文易乱码。",
+            "",
+            "- 读中文文件用 read / grep 工具，别用 Get-Content / type / cat",
+            "- 写 .ps1 脚本注释用英文（中文注释 UTF-8 无 BOM 会让解析失败）",
+            "- 输出可能含中文的命令前加 [Console]::OutputEncoding=[System.Text.Encoding]::UTF8",
+            "- Node 脚本不受影响（原生 UTF-8），只有 Windows PowerShell 控制台这一层是坑",
+        ].join("\n"),
+    },
+];
+
 // 模板：`{{key}}` 占位符运行时替换成字段值。提供 4 套（中文/英文 × 简洁/详细）。
 const AGENTS_TEMPLATES: Array<{ id: string; i18n: string; content: string }> = [
     {
@@ -409,6 +433,35 @@ function saveAgents(content: string): boolean {
     }
 }
 
+// ---------- 说明片段：读写 agents-segments.json + 重建 AGENTS.md ----------
+type SegState = { enabled: boolean; content: string };
+function loadSegments(): Record<string, SegState> {
+    try {
+        const d = JSON.parse(fs.readFileSync(AGENTS_SEGMENTS_PATH, "utf-8"));
+        return d && typeof d === "object" ? d : {};
+    } catch { return {}; }
+}
+function saveSegments(segs: Record<string, SegState>): void {
+    try {
+        fs.mkdirSync(CONFIG_DIR, { recursive: true });
+        fs.writeFileSync(AGENTS_SEGMENTS_PATH, JSON.stringify(segs, null, 2), "utf-8");
+    } catch {}
+}
+function segState(id: string): SegState {
+    const d = AGENTS_SEGMENTS.find((s) => s.id === id);
+    return { enabled: d?.defEnabled ?? false, content: d?.defContent ?? "" };
+}
+// 重建 AGENTS.md = 基础内容（标记区前）+ 启用的片段（标记区内）。无启用片段则不输出标记区。
+function rebuildAgents(base: string, segs: Record<string, SegState>): string {
+    const startIdx = base.indexOf(SEG_MARK_START);
+    const basePart = (startIdx >= 0 ? base.slice(0, startIdx) : base).replace(/\s+$/, "");
+    const enabledParts = AGENTS_SEGMENTS
+        .filter((s) => (segs[s.id] ?? segState(s.id)).enabled)
+        .map((s) => (segs[s.id] ?? segState(s.id)).content);
+    if (enabledParts.length === 0) return basePart;
+    return `${basePart}${basePart ? "\n\n" : ""}${SEG_MARK_START}\n${enabledParts.join("\n\n")}\n${SEG_MARK_END}`;
+}
+
 // i18n 字典：MemoryPage 硬编码文字统一走这里。新增 Tab/功能时加 key 即可，zh/en 两套对齐。
 const I18N = {
     zh: {
@@ -458,6 +511,10 @@ const I18N = {
         agentsCustom: "自定义...",
         agentsCustomDesc: "手动输入任意值（Enter 确认 / Esc 取消）",
         agentsFieldCur: "当前",
+        agentsSegments: "说明片段",
+        agentsSegUtf8: "Windows 编码",
+        agentsSegDesc: "开=注入 AGENTS.md / 关=隐藏；Enter 切换，编辑按钮改内容",
+        agentsEditSeg: "编辑片段",
     },
     en: {
         tabOverview: "Overview", tabList: "List", tabRecall: "Recall", tabAgents: "AGENTS",
@@ -506,6 +563,10 @@ const I18N = {
         agentsCustom: "Custom...",
         agentsCustomDesc: "enter any value (Enter confirm / Esc cancel)",
         agentsFieldCur: "current",
+        agentsSegments: "segments",
+        agentsSegUtf8: "Windows encoding",
+        agentsSegDesc: "on=inject AGENTS.md / off=hide; Enter toggles, edit button edits content",
+        agentsEditSeg: "edit segment",
     },
 } as const;
 type I18nKey = keyof typeof I18N.zh;
@@ -1298,6 +1359,8 @@ export default Plugin.define({
             // ---- AGENTS.md 管理（P7）：内容 state + 操作 ----
             const [agentsContent, setAgentsContent] = createSignal<string>(loadAgents() ?? "");
             const [agentsMsg, setAgentsMsg] = createSignal("");
+            // ---- 说明片段（P8）：开关状态 + 自定义内容 ----
+            const [agentsSegs, setAgentsSegs] = createSignal<Record<string, SegState>>(loadSegments());
             // 初始字段：优先从现有内容解析，缺失用 memory.json USER PREFERENCES 默认
             const initialFields = (() => {
                 const cur = agentsContent();
@@ -1322,6 +1385,42 @@ export default Plugin.define({
                 if (!tpl) return;
                 setAgentsContent(renderTemplate(tpl.content, agentsFields()));
                 setAgentsManual(false);
+                setAgentsTouched(true);
+                setAgentsMsg("");
+            }
+            // 切换片段开关：开=注入 AGENTS.md 片段区 / 关=移除；同步 agents-segments.json
+            function agentsToggleSegment(id: string) {
+                const cur = agentsSegs()[id] ?? segState(id);
+                const next = { ...agentsSegs(), [id]: { ...cur, enabled: !cur.enabled } };
+                setAgentsSegs(next);
+                saveSegments(next);
+                setAgentsContent(rebuildAgents(agentsContent(), next));
+                setAgentsTouched(true);
+                setAgentsMsg("");
+            }
+            // 编辑片段内容：选中片段 → prompt 编辑（\n 转义展示）→ 同步 + 重建 AGENTS.md
+            async function agentsEditSegment() {
+                const sel = await context.ui.dialog.select({
+                    title: t("agentsEditSeg") + " · " + t("agentsSegments"),
+                    current: "",
+                    options: AGENTS_SEGMENTS.map((s) => ({
+                        title: t(s.i18n),
+                        value: s.id,
+                        description: (agentsSegs()[s.id] ?? segState(s.id)).enabled ? "on" : "off",
+                        selection: "none",
+                    })),
+                });
+                if (!sel) return;
+                const cur = agentsSegs()[sel] ?? segState(sel);
+                const raw = await context.ui.dialog.prompt({
+                    title: `${t("agentsEditSeg")} · ${t("agentsSegUtf8")}`,
+                    placeholder: cur.content.slice(0, 60),
+                });
+                if (raw === undefined) return;
+                const next = { ...agentsSegs(), [sel]: { ...cur, content: raw.replace(/\\n/g, "\n") } };
+                setAgentsSegs(next);
+                saveSegments(next);
+                setAgentsContent(rebuildAgents(agentsContent(), next));
                 setAgentsTouched(true);
                 setAgentsMsg("");
             }
@@ -1386,7 +1485,7 @@ export default Plugin.define({
             }
             // ---- AGENTS 焦点网格导航（方向键选中 + Enter 激活；与 list ↑↓ 选中同一模式） ----
             // 3 行：模板行(4) / 字段行(5) / 操作行(3)。row/col 定位，跨行 col 夹紧。
-            const agentsRowLen = [AGENTS_TEMPLATES.length, AGENTS_FIELDS.length, 3];
+            const agentsRowLen = [AGENTS_TEMPLATES.length, AGENTS_FIELDS.length, AGENTS_SEGMENTS.length, 4];
             const [agentsFocus, setAgentsFocus] = createSignal<{ row: number; col: number }>({ row: 0, col: 0 });
             function agentsMove(dr: number, dc: number) {
                 const cur = agentsFocus();
@@ -1398,10 +1497,12 @@ export default Plugin.define({
                 const { row, col } = agentsFocus();
                 if (row === 0) agentsApplyTemplate(AGENTS_TEMPLATES[col].id);
                 else if (row === 1) void agentsEditField(AGENTS_FIELDS[col].key);
-                else if (row === 2) {
+                else if (row === 2) agentsToggleSegment(AGENTS_SEGMENTS[col].id);
+                else if (row === 3) {
                     if (col === 0) agentsSave();
                     else if (col === 1) agentsReload();
-                    else void agentsManualEdit();
+                    else if (col === 2) void agentsManualEdit();
+                    else void agentsEditSegment();
                 }
             }
             // 焦点判定（渲染高亮用）
@@ -1924,16 +2025,33 @@ export default Plugin.define({
                                             )}
                                         </For>
                                     </box>
-                                    {/* 操作行：保存 / 重载 / 手动编辑（方向键选中 + Enter 执行） */}
+                                    {/* 说明片段行（P8）：可开关段落，开=注入 AGENTS.md / 关=隐藏；Enter 切换 */}
+                                    <text fg={muted}>{`${t("agentsSegments")}:`}</text>
+                                    <box flexDirection="row" gap={1} flexWrap="wrap" paddingBottom={1}>
+                                        <For each={AGENTS_SEGMENTS}>
+                                            {(s, i) => {
+                                                const on = (agentsSegs()[s.id] ?? segState(s.id)).enabled;
+                                                return (
+                                                    <text fg={agentsFocusOn(2, i()) ? accent : (on ? base : muted)} onClick={() => agentsToggleSegment(s.id)}>
+                                                        {`${agentsFocusOn(2, i()) ? "▶" : " "}[${on ? "开" : "关"}] ${t(s.i18n)} ·`}
+                                                    </text>
+                                                );
+                                            }}
+                                        </For>
+                                    </box>
+                                    {/* 操作行：保存 / 重载 / 手动编辑 / 编辑片段（方向键选中 + Enter 执行） */}
                                     <box flexDirection="row" gap={1} paddingBottom={1}>
-                                        <text fg={agentsFocusOn(2, 0) ? accent : (agentsTouched() ? accent : muted)} onClick={() => agentsSave()}>
-                                            {`${agentsFocusOn(2, 0) ? "▶" : " "}[${t("agentsSave")}${agentsTouched() ? " ●" : ""}]`}
+                                        <text fg={agentsFocusOn(3, 0) ? accent : (agentsTouched() ? accent : muted)} onClick={() => agentsSave()}>
+                                            {`${agentsFocusOn(3, 0) ? "▶" : " "}[${t("agentsSave")}${agentsTouched() ? " ●" : ""}]`}
                                         </text>
-                                        <text fg={agentsFocusOn(2, 1) ? accent : muted} onClick={() => agentsReload()}>
-                                            {`${agentsFocusOn(2, 1) ? "▶" : " "}[${t("agentsReload")}]`}
+                                        <text fg={agentsFocusOn(3, 1) ? accent : muted} onClick={() => agentsReload()}>
+                                            {`${agentsFocusOn(3, 1) ? "▶" : " "}[${t("agentsReload")}]`}
                                         </text>
-                                        <text fg={agentsFocusOn(2, 2) ? accent : muted} onClick={() => void agentsManualEdit()}>
-                                            {`${agentsFocusOn(2, 2) ? "▶" : " "}[${t("agentsEdit")}]`}
+                                        <text fg={agentsFocusOn(3, 2) ? accent : muted} onClick={() => void agentsManualEdit()}>
+                                            {`${agentsFocusOn(3, 2) ? "▶" : " "}[${t("agentsEdit")}]`}
+                                        </text>
+                                        <text fg={agentsFocusOn(3, 3) ? accent : muted} onClick={() => void agentsEditSegment()}>
+                                            {`${agentsFocusOn(3, 3) ? "▶" : " "}[${t("agentsEditSeg")}]`}
                                         </text>
                                     </box>
                                     {/* 消息行 */}
