@@ -629,6 +629,9 @@ function logRecallHook(kind, query, candidates, injected, extra) {
         const items = Array.isArray(candidates) ? candidates.map((c) => ({
             tag: c.source_type === "corroborated" ? "佐证" : c.source_type === "user_confirmed" ? "确认" : "",
             content: c.content,
+            ...(c.category ? { category: c.category } : {}),
+            ...(typeof c.confidence === "number" ? { confidence: c.confidence } : {}),
+            ...(c.memory_type ? { memory_type: c.memory_type } : {}),
         })) : [];
         const rec = {
             t: new Date().toISOString(), kind,

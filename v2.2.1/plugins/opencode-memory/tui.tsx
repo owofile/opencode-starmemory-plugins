@@ -1939,7 +1939,7 @@ export default Plugin.define({
 
         // ---- 召回卡片（session.composer.top slot）：召回发生时在输入框上方显示 ⭐ 提示条，可折叠看内容 ----
         // server 召回 → recall-hook.log 追加（含 items[]）→ TUI 轮询 mtime → 解析最新"真实召回"（跳过 context-skip/error）→ setRecallEvent → 卡片显示
-        type RecallEvent = { t: string; kind: string; count: number; items: Array<{ tag?: string; content?: string }> };
+        type RecallEvent = { t: string; kind: string; count: number; items: Array<{ tag?: string; content?: string; category?: string; confidence?: number; memory_type?: string }> };
         const RECALL_AUTO_HIDE_MS = 8000; // 召回卡片自动消失超时：用户只想确认召回发生一次，8s 无交互且未展开 → 自动隐藏（不想一直看着）
         const [recallEvent, setRecallEvent] = createSignal<RecallEvent | null>(null);
         const [recallOpen, setRecallOpen] = createSignal(false);
@@ -2005,11 +2005,14 @@ export default Plugin.define({
             // 动态弹出动画（属性/结构）经 3+1 次验证确认对 composer.top slot 不可行（详见 RECALL_VISIBILITY.md 根因分析）。
             // 回退到稳定全显版本：内容直接渲染，无内层 Show 分档（避免 recallPop 首次渲染读 0 导致内容空白的非确定性风险）。
             // 注意：OpenTUI 的 onClick 在 <text>/<box> 上生效，<span> 不支持 → 可点击元素必须用 text，放 box row 里
+            // O2 召回卡片增强：可信度汇总（确认/佐证记忆数，P3 佐证加权后让用户感知召回可信度）
+            const trusted = ev.items.filter((it) => it.tag === "确认" || it.tag === "佐证").length;
             return (
                 <box border borderColor={panelBorder()} paddingX={1} flexDirection="column">
                     <box flexDirection="row" gap={1}>
                         <text fg={accent}>{"⭐"}</text>
                         <text fg={base}>{t("recallHintPrefix") + " " + ev.count + " " + t("recallHintUnit")}</text>
+                        {trusted > 0 ? <text fg={ok}>{"· 可信 " + trusted + "/" + ev.count}</text> : null}
                         <text fg={muted}>{"· " + ev.kind}</text>
                         <text fg={muted} selectable={false} onMouseDown={() => setRecallOpen(!recallOpen())}>{(recallOpen() ? "▼ " : "▶ ") + t("recallHintExpand")}</text>
                         <text fg={muted} selectable={false} onMouseDown={() => setRecallEvent(null)}>{"×"}</text>
@@ -2017,7 +2020,7 @@ export default Plugin.define({
                     <Show when={recallOpen()}>
                         <For each={ev.items}>
                             {(it) => (
-                                <text fg={muted}>{"• " + (it.tag ? "[" + it.tag + "] " : "") + (it.content ?? "")}</text>
+                                <text fg={muted}>{"• " + (it.tag ? "[" + it.tag + "] " : "") + (it.content ?? "") + (it.confidence !== undefined ? " (conf " + it.confidence + ")" : "")}</text>
                             )}
                         </For>
                     </Show>
