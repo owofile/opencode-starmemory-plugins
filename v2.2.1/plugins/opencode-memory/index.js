@@ -36,6 +36,21 @@ const FRAGMENT_DEFAULTS = {
 // 显式检索/更新可接受的分类字段
 const FILTERABLE_FIELDS = ["source_type", "memory_type", "ttl_policy", "consolidation_status"];
 
+// P5 O1 采集分类规范化：把自由输入的近似分类归一到固定集合，防未来碎片化（P4 已归一历史数据，此处防新数据再碎）。
+// 保守映射：只合并语义明确等同的（复数/中文对应/明显同义），不强制归并有细微差异的分类（config/environment 等保留）。
+const CATEGORY_ALIAS = {
+    projects: "project", "项目": "project", "项目进展": "project", "项目进度": "project",
+    "skill偏好": "preference", "偏好": "preference",
+    "godot坑": "godot", "godot-pitfalls": "godot",
+    "system-config": "environment", "system_config": "environment", "环境": "environment",
+    "debug_methodology": "technical", "ui-design": "technical", "技术": "technical",
+};
+function normalizeCategory(cat) {
+    const c = String(cat || "").trim().toLowerCase();
+    if (!c) return "general";
+    return CATEGORY_ALIAS[c] || c; // 未映射的保留原样（允许用户自定义分类）
+}
+
 // 懒迁移：补齐缺失字段（旧碎片自动升级，不丢数据）。返回新对象。
 function backfillFragment(f) {
     if (!f || typeof f !== "object") return f;
@@ -869,7 +884,7 @@ export default Plugin.define({
                         ...FRAGMENT_DEFAULTS,
                         id,
                         content: args.content,
-                        category: args.category || "general",
+                        category: normalizeCategory(args.category) || "general",
                         layer: args.layer || "surface",
                         weight: 0.5,
                         source: args.source || "explicit",

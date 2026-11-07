@@ -967,6 +967,7 @@ export default Plugin.define({
                     { title: "查看全文", value: "view", description: cutDW(frag.content, 60) },
                     { title: "删除记忆", value: "delete", description: "立即从热数据移除" },
                     { title: `提高权重 (当前 ${frag.weight ?? 0.5})`, value: "weight" },
+                    { title: frag.source_type === "user_confirmed" ? "已确认 ✓" : "标记确认（user_confirmed）", value: "confirm", description: frag.source_type === "user_confirmed" ? "已是用户确认" : "提升为可信记忆（置信度≥0.8，P3 佐证加权受益）" },
                     { title: "返回", value: "back", selection: "none" },
                 ],
             });
@@ -995,6 +996,19 @@ export default Plugin.define({
                     saveFragments(list);
                     context.ui.toast.show({ message: `权重已更新为 ${item.weight}`, variant: "success" });
                 }
+                return;
+            }
+            if (act === "confirm") {
+                if (frag.source_type === "user_confirmed") return; // 已确认
+                const list = loadFragments();
+                const item = list.find((f) => f.id === frag.id);
+                if (item) {
+                    item.source_type = "user_confirmed";
+                    item.confidence = Math.max(Number(item.confidence) || 0.5, 0.8);
+                    saveFragments(list);
+                    context.ui.toast.show({ message: "已标记为可信记忆（user_confirmed，置信度≥0.8）", variant: "success" });
+                }
+                return;
             }
         }
 
