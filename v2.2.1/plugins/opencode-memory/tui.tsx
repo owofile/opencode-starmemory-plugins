@@ -1359,8 +1359,10 @@ export default Plugin.define({
             const valStr = () => " ".repeat(Math.max(0, valW() - dw(lvName()))) + lvName(); // 右对齐
             // ---- 流星特效（拖到 MAX 立即：亮核+拖尾，深蓝流光）----
             // 触发：档位=6（MAX）且设置开 → 整条立即变深蓝流星；拖回非 MAX 立即恢复（丝滑无延迟）。
-            const METEOR_CORE = "#cfeaff"; // 亮核（亮蓝白）
-            const METEOR_DEEP = "#0b2340"; // 深海军蓝（拖尾末端/底色）
+            // 深蓝三档（底要可见——条一直存在，不能暗到看不见）
+            const METEOR_CORE = "#d6ecff"; // 亮核（亮蓝白）
+            const METEOR_MID = "#2a5a8c";  // 中蓝（拖尾中段）
+            const METEOR_DEEP = "#16324f"; // 深蓝底（可见，条始终存在）
             // 设置开（默认开）且档位=MAX → 立即进入流星；拖回非 MAX 立即恢复
             const meteorOn = (): boolean => {
                 if (settings.get().meteor === false) return false; // 设置关
@@ -1371,13 +1373,14 @@ export default Plugin.define({
                 const cycle = ((recallFrame() * 33) / 1600) % 1;
                 return cycle * Math.max(1, barW() - 1);
             };
-            // 字符颜色：核最亮，向左拖尾渐暗到深蓝，核前方深蓝底
+            // 精细流星：核最亮 → 中蓝 → 深蓝（两段渐变更平滑）；核前方深蓝底（条可见）
             const meteorCharColor = (i: number): string => {
                 const core = meteorCorePos();
                 const d = core - i; // 正=核左边（拖尾）；0=核；负=核右边
                 if (d < 0) return METEOR_DEEP;
-                const trail = Math.max(2, Math.round(barW() * 0.6)); // 拖尾长 60%
-                return lerpHex(METEOR_CORE, METEOR_DEEP, Math.min(1, d / trail));
+                const trail = Math.max(2, Math.round(barW() * 0.75)); // 拖尾长 75%（更长更精细）
+                const t = Math.min(1, d / trail);
+                return t < 0.5 ? lerpHex(METEOR_CORE, METEOR_MID, t * 2) : lerpHex(METEOR_MID, METEOR_DEEP, (t - 0.5) * 2);
             };
             // ---- 命中区：整条 bar 都可拖（修复不跟手 3 连） ----
             // ① bar 起点偏移：行起点 = label(labelW) + gap(1) → bar 从 labelW+1 列才开始；点击需减偏移
@@ -1401,7 +1404,8 @@ export default Plugin.define({
                             {Array.from({ length: fill() }).map((_, i) => (
                                 <span style={{ fg: meteorCharColor(i) }}>█</span>
                             ))}
-                            <span style={{ fg: meteorCharColor(fill()) }}>{"▓"}</span>
+                            {/* 手柄：流星模式也保持亮色可见（滑块条一直存在，不淹没在深蓝里） */}
+                            <span style={{ fg: flash() ? "#e6f7ff" : METEOR_CORE }}>{"▓"}</span>
                             <span style={{ fg: METEOR_DEEP }}>{"░".repeat(empty())}</span>
                         </>
                     ) : (
