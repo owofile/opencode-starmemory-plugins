@@ -1072,6 +1072,7 @@ export default Plugin.define({
                 typing: true,
                 panel_border: true,
                 meteor: true, // 流星特效（召回滑块 MAX 后 2s 深蓝流光），可关
+                meteor_rainbow: false, // 彩虹猫色带（流星特效开时切换蓝/彩虹），可关
                 auto_recall: loadRecallRuntime().enabled, // 功能开关：开=显示滑块+自动召回生效；关=仅主动召回
                 ...(loadFragConfig().tui ?? {}),
             };
@@ -1229,6 +1230,7 @@ export default Plugin.define({
                     { title: `打字机动效: ${typingOn() ? "开" : "关"}`, value: "typing" },
                     { title: `面板边框: ${s.panel_border ? "开" : "关"}`, value: "panel_border" },
                     { title: `流星特效(召回MAX后): ${s.meteor !== false ? "开" : "关"}`, value: "meteor" },
+                    { title: `彩虹流星: ${s.meteor_rainbow === true ? "开" : "关"}`, value: "meteor_rainbow" },
                     { title: "关于", value: "about", selection: "none" },
                 ],
             });
@@ -1357,12 +1359,30 @@ export default Plugin.define({
             const barColor = () => recallColor(pct()); // 渐变：0%浅绿→50%黄→100%深红（主题色，往 MAX 变深）
             const flash = () => Date.now() - recallFlashAt < 240; // 刚变更 → 手柄提亮（操作反馈）
             const valStr = () => " ".repeat(Math.max(0, valW() - dw(lvName()))) + lvName(); // 右对齐
-            // ---- 流星特效（拖到 MAX 立即：亮核+拖尾，深蓝流光）----
-            // 触发：档位=6（MAX）且设置开 → 整条立即变深蓝流星；拖回非 MAX 立即恢复（丝滑无延迟）。
-            // 深蓝三档（底要可见——条一直存在，不能暗到看不见）
-            const METEOR_CORE = "#d6ecff"; // 亮核（亮蓝白）
-            const METEOR_MID = "#2a5a8c";  // 中蓝（拖尾中段）
-            const METEOR_DEEP = "#16324f"; // 深蓝底（可见，条始终存在）
+            // ---- 流星特效（拖到 MAX 立即：亮核+拖尾+光晕+闪点，深蓝流光/可选彩虹）----
+            // 触发：档位=6（MAX）且设置开 → 整条立即变流星；拖回非 MAX 立即恢复（丝滑无延迟）。
+            // 深蓝系（底要可见——条一直存在，不能暗到看不见）
+            const METEOR_HEAD = "#f4fbff";   // 核前短辉（最亮）
+            const METEOR_CORE = "#d6ecff";   // 亮核（亮蓝白）
+            const METEOR_NEAR = "#8fd0ff";   // 近核
+            const METEOR_MID = "#2a5a8c";    // 中蓝（拖尾中段）
+            const METEOR_DEEP = "#16324f";   // 深蓝底（可见，条始终存在）
+            const METEOR_TAIL = "#0e2238";   // 拖尾末端（最暗但可见）
+            const METEOR_GLOW_BG = "#0a1a2a"; // 核格背景微亮（光晕）
+            // 单宽闪点（重复 = 加权；宽字符 ✦/emoji 会让条错位，禁用）
+            const SPARK_CHARS = ["·", "·", "·", "·", "✧", "⋆", "°"] as const;
+            const SPARK_COLORS = ["#ffffff", "#ffe066", "#7fffd4", "#ff9de2"] as const;
+            // 彩虹猫硬色带（可选模式，设置 meteor_rainbow 切换）
+            const RAINBOW = ["#ff3b3b", "#ff9f1a", "#ffe600", "#3bff6b", "#1ac8ff", "#6b3bff", "#ff3bd4"] as const;
+            // 确定性哈希：同一帧同格固定，避免 Math.random 噪点不可复现
+            const hash2 = (a: number, b: number): number => {
+                let x = (a * 2654435761 + b * 68917) >>> 0;
+                x ^= x >>> 13;
+                x = (x * 1274126177) >>> 0;
+                return (x >>> 0) / 4294967296;
+            };
+            // 降频：~10Hz 变一次（recallFrame 每 33ms，/3 ≈ 99ms），不是每帧全变
+            const flickerTick = (): number => Math.floor(recallFrame() / 3);
             // 设置开（默认开）且档位=MAX → 立即进入流星；拖回非 MAX 立即恢复
             const meteorOn = (): boolean => {
                 if (settings.get().meteor === false) return false; // 设置关
@@ -1373,15 +1393,45 @@ export default Plugin.define({
                 const cycle = ((recallFrame() * 33) / 1600) % 1;
                 return cycle * Math.max(1, barW() - 1);
             };
-            // 精细流星：核最亮 → 中蓝 → 深蓝（两段渐变更平滑）；核前方深蓝底（条可见）
-            const meteorCharColor = (i: number): string => {
+            // 流星格：核光晕 + 拖尾密度 + 稀疏闪点 + 可选彩虹色带
+            const meteorCell = (i: number): { ch: string; fg: string; bg?: string } => {
                 const core = meteorCorePos();
                 const d = core - i; // 正=核左边（拖尾）；0=核；负=核右边
-                if (d < 0) return METEOR_DEEP;
-                const trail = Math.max(2, Math.round(barW() * 0.75)); // 拖尾长 75%（更长更精细）
+                // —— 核前短辉：只亮 1 格（核“头”更立体）——
+                if (d < 0) {
+                    if (d > -1.2) return { ch: "█", fg: METEOR_HEAD, bg: METEOR_GLOW_BG };
+                    return { ch: "█", fg: METEOR_DEEP };
+                }
+                const trail = Math.max(4, Math.round(barW() * 0.9)); // 拖尾长 90%
                 const t = Math.min(1, d / trail);
-                return t < 0.5 ? lerpHex(METEOR_CORE, METEOR_MID, t * 2) : lerpHex(METEOR_MID, METEOR_DEEP, (t - 0.5) * 2);
+                const tt = Math.pow(t, 1.3); // 近核变化慢，远核衰减快
+                const tick = flickerTick();
+                const r = hash2(i, tick);
+                // —— 稀疏闪点：越靠尾概率越高，核附近几乎不闪 ——
+                const sparkChance = tt > 0.30 ? 0.18 : 0.04;
+                if (r < sparkChance) {
+                    const ch = SPARK_CHARS[Math.floor(r * 9973) % SPARK_CHARS.length];
+                    const fg = SPARK_COLORS[Math.floor(r * 3571) % SPARK_COLORS.length];
+                    return { ch, fg };
+                }
+                // —— 拖尾颜色：彩虹猫可选（设置 meteor_rainbow）/ 默认深蓝 ——
+                const useRainbow = settings.get().meteor_rainbow === true;
+                const fg = useRainbow
+                    ? RAINBOW[Math.min(RAINBOW.length - 1, Math.floor(tt * RAINBOW.length))]
+                    : (() => {
+                        if (tt < 0.18) return lerpHex(METEOR_CORE, METEOR_NEAR, tt / 0.18);
+                        if (tt < 0.45) return lerpHex(METEOR_NEAR, METEOR_MID, (tt - 0.18) / 0.27);
+                        if (tt < 0.75) return lerpHex(METEOR_MID, METEOR_DEEP, (tt - 0.45) / 0.30);
+                        return lerpHex(METEOR_DEEP, METEOR_TAIL, (tt - 0.75) / 0.25);
+                    })();
+                // —— 字符密度：彗尾消散 █→▓→▒→░ ——
+                const ch = tt < 0.22 ? "█" : tt < 0.52 ? "▓" : tt < 0.80 ? "▒" : "░";
+                // —— 核附近 bg 光晕（若 bg 不生效删掉即可）——
+                const bg = d < 1.8 ? METEOR_GLOW_BG : undefined;
+                return { ch, fg, bg };
             };
+            // 兼容薄包装（外部行为不变，内部已升级）
+            const meteorCharColor = (i: number): string => meteorCell(i).fg;
             // ---- 命中区：整条 bar 都可拖（修复不跟手 3 连） ----
             // ① bar 起点偏移：行起点 = label(labelW) + gap(1) → bar 从 labelW+1 列才开始；点击需减偏移
             const BAR_OFFSET = () => props.labelW + 1;
@@ -1401,11 +1451,14 @@ export default Plugin.define({
                     {/* 渐变填充 + 1 字符手柄 + 背景；流星模式：亮核+拖尾深蓝流光（逐字符着色） */}
                     {meteorOn() ? (
                         <>
-                            {Array.from({ length: fill() }).map((_, i) => (
-                                <span style={{ fg: meteorCharColor(i) }}>█</span>
-                            ))}
-                            {/* 手柄：流星模式也保持亮色可见（滑块条一直存在，不淹没在深蓝里） */}
-                            <span style={{ fg: flash() ? "#e6f7ff" : METEOR_CORE }}>{"▓"}</span>
+                            {Array.from({ length: fill() }).map((_, i) => {
+                                const cell = meteorCell(i);
+                                return (
+                                    <span style={{ fg: cell.fg, bg: cell.bg }}>{cell.ch}</span>
+                                );
+                            })}
+                            {/* 手柄：流星模式也保持亮色可见（改 METEOR_NEAR 减少双核感） */}
+                            <span style={{ fg: flash() ? "#e6f7ff" : METEOR_NEAR }}>{"▓"}</span>
                             <span style={{ fg: METEOR_DEEP }}>{"░".repeat(empty())}</span>
                         </>
                     ) : (
