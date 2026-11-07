@@ -1369,16 +1369,16 @@ export default Plugin.define({
             const onUp = () => { try { setRecallDrag(false); } catch {} };
             return (
                 <text selectable={false} onMouseDown={onDown} onMouseDrag={onDrag} onMouseUp={onUp}>
-                    {/* label 等宽列（padEndDW 到 PANEL_LABEL_W）+ 1 空格 gap */}
-                    <span fg={muted}>{padEndDW(props.label, PANEL_LABEL_W) + " "}</span>
+                    {/* label 等宽列（padEndDW 到 PANEL_LABEL_W）+ 1 空格 gap；span 颜色必须 style.fg（直接 fg prop 不生效） */}
+                    <span style={{ fg: muted }}>{padEndDW(props.label, PANEL_LABEL_W) + " "}</span>
                     {/* 渐变填充 + 1 字符手柄 + 背景 */}
-                    <span fg={barColor()}>{"█".repeat(fill())}</span>
-                    <span fg={flash() ? base : accent}>{"▓"}</span>
-                    <span fg={dimColor(muted, 0.65)}>{"░".repeat(empty())}</span>
+                    <span style={{ fg: barColor() }}>{"█".repeat(fill())}</span>
+                    <span style={{ fg: flash() ? base : accent }}>{"▓"}</span>
+                    <span style={{ fg: dimColor(muted, 0.65) }}>{"░".repeat(empty())}</span>
                     {/* 2 空格 gap + 档位名（右对齐） */}
-                    <span fg={muted}>{"  "}</span>
-                    <span fg={barColor()}>{valStr()}</span>
-                    {!recallWriteOk() ? <span fg={errC}>!</span> : null}
+                    <span style={{ fg: muted }}>{"  "}</span>
+                    <span style={{ fg: barColor() }}>{valStr()}</span>
+                    {!recallWriteOk() ? <span style={{ fg: errC }}>!</span> : null}
                 </text>
             );
         };
@@ -1409,7 +1409,7 @@ export default Plugin.define({
                         onClick={() => context.ui.router.navigate({ type: "plugin", name: "memory" })}>
                         {/* 框标题：左上角 */}
                         <text fg={muted}>{title()}</text>
-                        {/* 行1：memory = label + 无括号条形 + 数字（右对齐） */}
+                        {/* 行1：memory = label + 无括号条形 + 数字（右对齐）。保持原样（span fg，用户要求"记忆不要变"） */}
                         <text>
                             <span fg={muted}>{padEndDW(memLabel(), PANEL_LABEL_W) + " "}</span>
                             <span fg={tier(st().total / st().max)}>{heatFill(st().total / st().max, BAR_W())}</span>
@@ -1955,7 +1955,7 @@ export default Plugin.define({
                         {props.right ? (
                             <>
                                 {body()}{" ".repeat(Math.max(1, GAUGE - dw(body()) - dw(props.right)))}
-                                <span fg={dimColor(muted, 0.75)}>{props.right}</span>
+                                <span style={{ fg: dimColor(muted, 0.75) }}>{props.right}</span>
                             </>
                         ) : (
                             body()
@@ -2178,7 +2178,7 @@ export default Plugin.define({
                                     <Fade start={BODY_START}>
                                         <text>
                                             <span fg={muted}>{"track "}</span>
-                                            <span fg={recallColor((recallTarget() / 6) * 100)}>{recallTrack(recallTarget())}</span>
+                                            <span style={{ fg: recallColor((recallTarget() / 6) * 100) }}>{recallTrack(recallTarget())}</span>
                                             <span fg={muted}>{" "}{RECALL_LEVELS[recallTarget()]}</span>
                                         </text>
                                     </Fade>
