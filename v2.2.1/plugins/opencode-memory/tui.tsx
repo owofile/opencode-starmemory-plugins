@@ -1370,58 +1370,46 @@ export default Plugin.define({
             const METEOR_TAIL = "#0e2238";   // 拖尾末端（最暗但可见）
             const METEOR_BG_DARK = "#0a1826";  // bg 流光层：暗底
             const METEOR_BG_LIGHT = "#16324f"; // bg 流光层：亮带（集中在核附近，=DEEP）
-            // 单宽闪点（重复 = 加权；宽字符 ✦/emoji 会让条错位，禁用）
-            const SPARK_CHARS = ["·", "·", "·", "·", "✧", "⋆", "°"] as const;
-            const SPARK_COLORS = ["#ffffff", "#ffe066", "#7fffd4", "#ff9de2"] as const;
             // 彩虹猫硬色带（可选模式，设置 meteor_rainbow 切换）
             const RAINBOW = ["#ff3b3b", "#ff9f1a", "#ffe600", "#3bff6b", "#1ac8ff", "#6b3bff", "#ff3bd4"] as const;
-            // 确定性哈希：同一帧同格固定，避免 Math.random 噪点不可复现
-            const hash2 = (a: number, b: number): number => {
-                let x = (a * 2654435761 + b * 68917) >>> 0;
-                x ^= x >>> 13;
-                x = (x * 1274126177) >>> 0;
-                return (x >>> 0) / 4294967296;
-            };
-            // 降频：~10Hz 变一次（recallFrame 每 33ms，/3 ≈ 99ms），不是每帧全变
-            const flickerTick = (): number => Math.floor(recallFrame() / 3);
             // 设置开（默认开）且档位=MAX → 立即进入流星；拖回非 MAX 立即恢复
             const meteorOn = (): boolean => {
                 if (settings.get().meteor === false) return false; // 设置关
                 return recallTarget() === 6; // 拖到 MAX 立即出现，拖回即消失
             };
-            // 核位置：0..barW-1 循环移动（约 1.6s 划过一次，流淌感）
+            // 核位置：0..barW-1 循环移动（约 2.4s 划过一次，从容优雅）
             const meteorCorePos = (): number => {
-                const cycle = ((recallFrame() * 33) / 1600) % 1;
+                const cycle = ((recallFrame() * 33) / 2400) % 1;
                 return cycle * Math.max(1, barW() - 1);
             };
-            // 流星格：双层叠加 —— bg 深蓝流光底（亮带随核相位流动）+ fg 流星（核/拖尾/闪点/可选彩虹）
+            // 流星格：双层叠加 —— bg 深蓝流光底 + fg 流星（核/拖尾，柔光呼吸，环形无缝循环）
             const meteorCell = (i: number): { ch: string; fg: string; bg: string } => {
                 const core = meteorCorePos();
-                const d = core - i; // 正=核左边（拖尾）；0=核；负=核右边
-                // —— bg 流光层（底层）：亮带峰在核处，随核相位流动，全条连续 ——
                 const span = Math.max(1, barW());
-                const wave = 0.5 + 0.5 * Math.cos(2 * Math.PI * ((i - core) / span)); // 1 在核处，向两边衰减
+                // —— bg 流光层（底层）：亮带峰在核处，环形连续（cos 周期=span，随核无缝流动）——
+                const wave = 0.5 + 0.5 * Math.cos(2 * Math.PI * ((i - core) / span));
                 const bg = lerpHex(METEOR_BG_DARK, METEOR_BG_LIGHT, Math.pow(wave, 2));
-                // —— fg 流星层（表层）：核前短辉，只亮 1 格（核“头”更立体）——
-                if (d < 0) {
-                    if (d > -1.2) return { ch: "█", fg: METEOR_HEAD, bg };
-                    return { ch: "█", fg: METEOR_DEEP, bg };
+                // —— 单一连贯光波：波长=全条（相邻格相位差小，无噪点），沿拖尾缓缓流动，接缝处连续 ——
+                const frameMs = recallFrame() * 33;
+                const breath = 0.5 + 0.5 * Math.sin(2 * Math.PI * (frameMs / 1200) + 2 * Math.PI * (i / span));
+                // —— 环形距离：核绕条一圈，拖尾跨接缝连续（无跳变，循环流畅）——
+                const ad = ((i - core) % span + span) % span; // 沿移动方向 i 在核前方距离（0..span-1）
+                const td = ((core - i) % span + span) % span; // 沿移动方向 i 在核后方距离（0..span-1）
+                // —— 边缘淡入淡出：核临近接缝(左右缘)时溶解/凝聚，跳变发生在不可见状态（无缝循环）——
+                const pos = core / Math.max(1, span - 1);
+                const edgeFade = Math.max(0, Math.min(1, Math.min(pos, 1 - pos) / 0.12));
+                const coreGlow = 0.75 + 0.25 * Math.sin(2 * Math.PI * (frameMs / 1600));
+                // —— 核前辉光：前方 2 格平滑衰减（亮头前缘，无硬边）——
+                if (ad <= 2) {
+                    const headFg = lerpHex(METEOR_CORE, METEOR_HEAD, coreGlow);
+                    const frontFade = 1 - ad / 2;
+                    return { ch: "█", fg: lerpHex(lerpHex(METEOR_DEEP, headFg, frontFade), bg, 1 - edgeFade), bg };
                 }
-                const trail = Math.max(4, Math.round(barW() * 0.9)); // 拖尾长 90%
-                const t = Math.min(1, d / trail);
-                const tt = Math.pow(t, 1.3); // 近核变化慢，远核衰减快
-                const tick = flickerTick();
-                const r = hash2(i, tick);
-                // —— 稀疏闪点：越靠尾概率越高，核附近几乎不闪 ——
-                const sparkChance = tt > 0.30 ? 0.18 : 0.04;
-                if (r < sparkChance) {
-                    const ch = SPARK_CHARS[Math.floor(r * 9973) % SPARK_CHARS.length];
-                    const fg = SPARK_COLORS[Math.floor(r * 3571) % SPARK_COLORS.length];
-                    return { ch, fg, bg };
-                }
-                // —— 拖尾颜色：彩虹猫可选（设置 meteor_rainbow）/ 默认深蓝 ——
+                // —— 拖尾：后方渐变（环形，前方留暗区→彗星形状清晰），拖尾 75% ——
+                const trail = Math.max(4, Math.round(span * 0.75));
+                const tt = Math.min(1, td / trail);
                 const useRainbow = settings.get().meteor_rainbow === true;
-                const fg = useRainbow
+                const baseFg = useRainbow
                     ? RAINBOW[Math.min(RAINBOW.length - 1, Math.floor(tt * RAINBOW.length))]
                     : (() => {
                         if (tt < 0.18) return lerpHex(METEOR_CORE, METEOR_NEAR, tt / 0.18);
@@ -1429,9 +1417,10 @@ export default Plugin.define({
                         if (tt < 0.75) return lerpHex(METEOR_MID, METEOR_DEEP, (tt - 0.45) / 0.30);
                         return lerpHex(METEOR_DEEP, METEOR_TAIL, (tt - 0.75) / 0.25);
                     })();
-                // —— 字符密度：彗尾消散 █→▓→▒→░ ——
-                const ch = tt < 0.22 ? "█" : tt < 0.52 ? "▓" : tt < 0.80 ? "▒" : "░";
-                return { ch, fg, bg };
+                // —— 呼吸提亮：平滑渐变（近核幅度大，尾端几乎不动），连贯光波，无硬切 ——
+                const bright = useRainbow ? "#ffffff" : METEOR_HEAD; // 恒比 baseFg 亮（一致提亮）
+                const fg = lerpHex(lerpHex(baseFg, bright, breath * (1 - tt) * 0.4), bg, 1 - edgeFade);
+                return { ch: "█", fg, bg }; // 整条单字符 █ + 纯色渐变，无 █▓▒░ 硬台阶
             };
             // 兼容薄包装（外部行为不变，内部已升级）
             const meteorCharColor = (i: number): string => meteorCell(i).fg;
