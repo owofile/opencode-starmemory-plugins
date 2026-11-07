@@ -36,6 +36,15 @@ const FRAGMENT_DEFAULTS = {
 // 显式检索/更新可接受的分类字段
 const FILTERABLE_FIELDS = ["source_type", "memory_type", "ttl_policy", "consolidation_status"];
 
+// P5 O1c 类型分化表：巩固后按 memory_type 设不同衰减参数（stability 越高衰减越慢，decay_rate 越高衰减越快）。
+// 语义记忆长期保留慢衰减，事件记忆最易衰减。修复原 if(!f.stability) bug（懒迁移补 1.0 导致永不衰减）。
+const TYPE_DECAY = {
+    semantic:   { stability: 0.8, decay_rate: 0.3 },
+    preference: { stability: 0.7, decay_rate: 0.4 },
+    procedure:  { stability: 0.6, decay_rate: 0.5 },
+    episodic:   { stability: 0.5, decay_rate: 0.6 },
+};
+
 // P5 O1 采集分类规范化：把自由输入的近似分类归一到固定集合，防未来碎片化（P4 已归一历史数据，此处防新数据再碎）。
 // 保守映射：只合并语义明确等同的（复数/中文对应/明显同义），不强制归并有细微差异的分类（config/environment 等保留）。
 const CATEGORY_ALIAS = {
@@ -373,6 +382,24 @@ function migrateCorroborated() {
     } catch { return 0; }
 }
 
+// P5 O1c 一次性迁移：现有碎片若仍持默认伪造衰减参数（stability=1.0/decay_rate=0.5，懒迁移补的，非真实设置），
+// 按 memory_type 补正确衰减参数，让温度衰减立即生效（原 bug 导致永不衰减）。不改 confidence（保守）。
+function migrateDecayParams() {
+    try {
+        const fragments = loadFragments();
+        let upgraded = 0;
+        for (const f of fragments) {
+            const td = TYPE_DECAY[f.memory_type || "semantic"] || TYPE_DECAY.semantic;
+            let dirty = false;
+            if ((f.stability === undefined || f.stability === 1.0) && td.stability !== 1.0) { f.stability = td.stability; dirty = true; }
+            if ((f.decay_rate === undefined || f.decay_rate === 0.5) && td.decay_rate !== 0.5) { f.decay_rate = td.decay_rate; dirty = true; }
+            if (dirty) upgraded++;
+        }
+        if (upgraded > 0) saveFragments(fragments);
+        return upgraded;
+    } catch { return 0; }
+}
+
 function updateRecall(id) {
     const fragments = loadFragments();
     const idx = fragments.findIndex(f => f.id === id);
@@ -433,7 +460,11 @@ function dreamerRun() {
             if (used && ageDays >= CONSOLIDATION_DAYS) {
                 f.consolidation_status = "consolidated";
                 f.consolidation_at = now.toISOString();
-                if (!f.stability) f.stability = 0.7;
+                // P5 O1c 类型分化（修复原 if(!f.stability) bug）：按 memory_type 设衰减参数。
+                // 懒迁移补的默认 1.0/0.5 是伪造值（非用户真实设置），视为未设置 → 覆盖为类型真实值。
+                const td = TYPE_DECAY[f.memory_type || "semantic"] || TYPE_DECAY.semantic;
+                if (f.stability === undefined || f.stability === 1.0) f.stability = td.stability;
+                if (f.decay_rate === undefined || f.decay_rate === 0.5) f.decay_rate = td.decay_rate;
                 if (!f.base_activation || f.base_activation < 0.2) f.base_activation = 0.3;
                 dirty = true;
                 report.consolidated++;
@@ -721,6 +752,12 @@ export default Plugin.define({
         const migrated = migrateCorroborated();
         if (migrated > 0) {
             try { log("INFO", "storage", "migrate-corroborated", { upgraded: migrated }); } catch {}
+        }
+
+        // P5 O1c 衰减参数迁移：修复 stability 永不衰减 bug，按类型补正确衰减参数（温度衰减立即生效）
+        const decayMigrated = migrateDecayParams();
+        if (decayMigrated > 0) {
+            try { log("INFO", "storage", "migrate-decay-params", { upgraded: decayMigrated }); } catch {}
         }
 
         await ctx.tool.transform((editor) => {
