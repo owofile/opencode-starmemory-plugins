@@ -675,6 +675,81 @@ function dimColor(hex: string, factor = 0.5): string {
     return "#" + ch((n >> 16) & 255) + ch((n >> 8) & 255) + ch(n & 255);
 }
 
+// ---------- 颜色工具（移植自 opencode-visual-cache 的 dist/core/color.ts，MIT） ----------
+// 核心思路：从主题取色后 desaturateTo 降到 Morandi 风格（低饱和、协调但可区分）。
+/** 从 hex 字符串或 {r,g,b} 对象提取 0-255 RGB；非法返回 null */
+function rgb(raw: unknown): { r: number; g: number; b: number } | null {
+    if (typeof raw === "string" && raw.startsWith("#")) {
+        const h = raw.slice(1);
+        return { r: parseInt(h.slice(0, 2), 16), g: parseInt(h.slice(2, 4), 16), b: parseInt(h.slice(4, 6), 16) };
+    }
+    if (raw && typeof raw === "object") {
+        const o = raw as any;
+        if (typeof o.r === "number" && typeof o.g === "number" && typeof o.b === "number") {
+            const scale = o.r > 1 || o.g > 1 || o.b > 1 ? 1 : 255;
+            return { r: Math.round(o.r * scale), g: Math.round(o.g * scale), b: Math.round(o.b * scale) };
+        }
+    }
+    return null;
+}
+/** HSL 饱和度（0-1） */
+function saturation(r: number, g: number, b: number): number {
+    const max = Math.max(r, g, b) / 255;
+    const min = Math.min(r, g, b) / 255;
+    const delta = max - min;
+    if (delta === 0) return 0;
+    const L = (max + min) / 2;
+    return L <= 0.5 ? delta / (max + min) : delta / (2 - max - min);
+}
+/** 若颜色饱和度超 maxSat，向灰色拉直到降到 maxSat；返回 hex */
+function desaturateTo(raw: unknown, maxSat: number, fallback: string): string {
+    const c = rgb(raw);
+    if (!c) return fallback;
+    const sat = saturation(c.r, c.g, c.b);
+    if (sat <= maxSat) return "#" + [c.r, c.g, c.b].map((v) => v.toString(16).padStart(2, "0")).join("");
+    const luma = c.r * 0.299 + c.g * 0.587 + c.b * 0.114;
+    let lo = 0, hi = 1;
+    for (let i = 0; i < 12; i++) {
+        const mid = (lo + hi) / 2;
+        const nr = Math.round(c.r + (luma - c.r) * mid);
+        const ng = Math.round(c.g + (luma - c.g) * mid);
+        const nb = Math.round(c.b + (luma - c.b) * mid);
+        if (saturation(nr, ng, nb) > maxSat) lo = mid;
+        else hi = mid;
+    }
+    const nr = Math.round(c.r + (luma - c.r) * hi);
+    const ng = Math.round(c.g + (luma - c.g) * hi);
+    const nb = Math.round(c.b + (luma - c.b) * hi);
+    return "#" + [nr, ng, nb].map((v) => Math.max(0, Math.min(255, v)).toString(16).padStart(2, "0")).join("");
+}
+/** Morandi 风格回退色板（主题缺字段时兜底） */
+const FALLBACK = {
+    primary: "#8B9DAF",
+    text: "#C5C5BB",
+    muted: "#7A7A72",
+    success: "#9CAF8B",
+    warning: "#C5B88D",
+    error: "#B08A8A",
+    border: "#6B6B63",
+};
+/** 降饱和上限：Morandi 风格 ≈0.15-0.30 饱和度，0.28 靠上限（保色可区分又不过艳） */
+const MAX_SAT = 0.28;
+/** 从 opentui 主题映射到 V1 形状（primary/text/textMuted/success/warning/error/border）。
+ *  V2 主题结构：primary 在 hue.interactive[300]，语义色在 text.feedback.*（不在 text 顶层）。 */
+function mapTheme(theme: any) {
+    const text = theme?.text ?? {};
+    const feedback = text.feedback ?? {};
+    return {
+        primary: theme?.hue?.interactive?.[300],
+        text: text.base ?? text.default,
+        textMuted: text.muted ?? text.subdued,
+        success: feedback.success?.base ?? feedback.success?.default,
+        warning: feedback.warning?.base ?? feedback.warning?.default,
+        error: feedback.error?.base ?? feedback.error?.default,
+        border: text.muted ?? text.subdued,
+    };
+}
+
 function fmtClock(msTotal: number): string {
     const t = Math.max(0, Math.floor(msTotal));
     const m = Math.floor(t / 60000);
@@ -750,23 +825,7 @@ function lerpHex(a: string, b: string, t: number): string {
             .padStart(2, "0");
     return "#" + ch(16) + ch(8) + ch(0);
 }
-const RECALL_GRAD = [
-    { at: 0, c: "#3ddc84" }, // 绿（安全，低消耗）
-    { at: 25, c: "#22d3ee" }, // 青（平衡）
-    { at: 50, c: "#facc15" }, // 黄（平衡上限）
-    { at: 75, c: "#fb923c" }, // 橙（高召回）
-    { at: 100, c: "#f87171" }, // 红（MAX 极限）
-];
-function recallLevelColor(pct: number): string {
-    const p = Math.max(0, Math.min(100, pct));
-    for (let i = 0; i < RECALL_GRAD.length - 1; i++) {
-        if (p <= RECALL_GRAD[i + 1].at) {
-            const t = (p - RECALL_GRAD[i].at) / (RECALL_GRAD[i + 1].at - RECALL_GRAD[i].at);
-            return lerpHex(RECALL_GRAD[i].c, RECALL_GRAD[i + 1].c, t);
-        }
-    }
-    return RECALL_GRAD[RECALL_GRAD.length - 1].c;
-}
+// 滑块渐变已迁到 setup 内（recallGrad/recallColor，主题色）——模块级 RECALL_GRAD/recallLevelColor 已废弃删除
 
 /** 探测元素可用宽度（OpenTUI renderable）：优先 getMaxWidth（父容器约束=可用宽），再 getLayout/getComputedLayout 兜底 */
 function measureWidth(el: any): number {
@@ -933,14 +992,17 @@ function matchFragments(q: string): Fragment[] {
 export default Plugin.define({
     id: "opencode-memory.tui",
     setup(context) {
-        const theme = context.theme;
-        const base = theme.text.base;
-        const muted = theme.text.muted;
-        const warn = (theme as any).text?.error ?? (theme as any).text?.warning ?? base;
-        const accent = (theme as any).text?.primary ?? (theme as any).text?.accent ?? base;
-        const ok = (theme as any).text?.success ?? accent; // success 语义色（灰绿）
-        const warnC = (theme as any).text?.warning ?? warn; // warning 语义色（灰黄）
-        const errC = (theme as any).text?.error ?? warn; // error 语义色（灰红）
+        // 主题颜色：V2 结构经 mapTheme 映射 → desaturateTo 降饱和到 Morandi 风格（visual-cache 同款方案）
+        // 修复：原取 theme.text.primary / theme.text.success 等路径在 V2 主题里不存在（全 fallback 到灰）→ 颜色失效。
+        // 正确路径：primary 在 theme.hue.interactive[300]，语义色在 theme.text.feedback.*。
+        const _th = mapTheme(context.theme);
+        const base = desaturateTo(_th.text, MAX_SAT, FALLBACK.text);
+        const muted = desaturateTo(_th.textMuted, MAX_SAT, FALLBACK.muted);
+        const accent = desaturateTo(_th.primary, MAX_SAT, FALLBACK.primary);
+        const ok = desaturateTo(_th.success, MAX_SAT, FALLBACK.success); // success 语义色（灰绿）
+        const warnC = desaturateTo(_th.warning, MAX_SAT, FALLBACK.warning); // warning 语义色（灰黄）
+        const errC = desaturateTo(_th.error, MAX_SAT, FALLBACK.error); // error 语义色（灰红）
+        const warn = warnC; // 警告色别名（多处用）
         // 语义三档（括号条形）：高→success / 中→warning / 低→error
         const tier = (r: number) => (r >= 0.7 ? ok : r >= 0.35 ? warnC : errC);
         // 温和版（列表 weight 用）：低→muted 不红
@@ -1254,6 +1316,24 @@ export default Plugin.define({
 
         // ---- 召回进度条行（统一面板内 recall 行：label + 渐变bar + 1字符手柄 + 档位名，整条可拖） ----
         // props.barW/valW 由父 MemoryPanel 算好传入（number 值，非 signal：父不因 recall 动画重渲染）
+        // ---- 召回滑块渐变（主题 Morandi 色，往 MAX 变深）----
+        // 0% 浅灰绿（低档/浅）→ 50% 黄（平衡）→ 100% 深红（MAX/深）。语义色相 + 明度随档位加深。
+        const recallGrad = [
+            { at: 0, c: lerpHex(muted, ok, 0.5) },   // 浅灰绿（低档，浅）
+            { at: 50, c: warnC },                    // 黄（平衡）
+            { at: 100, c: dimColor(errC, 0.85) },    // 深红（MAX，最深）
+        ];
+        const recallColor = (pct: number): string => {
+            const p = Math.max(0, Math.min(100, pct));
+            for (let i = 0; i < recallGrad.length - 1; i++) {
+                if (p <= recallGrad[i + 1].at) {
+                    const t = (p - recallGrad[i].at) / (recallGrad[i + 1].at - recallGrad[i].at);
+                    return lerpHex(recallGrad[i].c, recallGrad[i + 1].c, t);
+                }
+            }
+            return recallGrad[recallGrad.length - 1].c;
+        };
+
         const RecallBar = (props: { barW: number; valW: number; label: string; labelW: number }) => {
             onCleanup(() => stopRecallAnim()); // 组件卸载（auto_recall 关）→ 停动画
             // 挂载同步：外部（工具/其它进程）可能已改档位 → 重挂载后显示正确；不设 flash（避免开滑块误闪）
@@ -1271,7 +1351,7 @@ export default Plugin.define({
             const fill = () => thumbX();
             const empty = () => Math.max(0, barW() - thumbX() - 1);
             const pct = () => Math.round((disp() / 6) * 100);
-            const barColor = () => recallLevelColor(pct()); // 渐变：0%绿→25%青→50%黄→75%橙→100%红
+            const barColor = () => recallColor(pct()); // 渐变：0%浅绿→50%黄→100%深红（主题色，往 MAX 变深）
             const flash = () => Date.now() - recallFlashAt < 240; // 刚变更 → 手柄提亮（操作反馈）
             const valStr = () => " ".repeat(Math.max(0, valW() - dw(lvName()))) + lvName(); // 右对齐
             // ---- 命中区：整条 bar 都可拖（修复不跟手 3 连） ----
@@ -1978,7 +2058,7 @@ export default Plugin.define({
                     <box flexDirection="row" gap={2} paddingTop={1}>
                         <For each={availableTabs()}>
                             {(tk) => (
-                                <text fg={effTab() === tk ? base : muted} onClick={() => setTab(tk)}>
+                                <text fg={effTab() === tk ? accent : (tk === "recall" ? ok : tk === "dev" ? warnC : muted)} onClick={() => setTab(tk)}>
                                     {effTab() === tk ? `[${tabLabel(tk)}]` : ` ${tabLabel(tk)} `}
                                 </text>
                             )}
@@ -2097,7 +2177,7 @@ export default Plugin.define({
                                     <Fade start={BODY_START}>
                                         <text>
                                             <span fg={muted}>{"track "}</span>
-                                            <span fg={recallLevelColor((recallTarget() / 6) * 100)}>{recallTrack(recallTarget())}</span>
+                                            <span fg={recallColor((recallTarget() / 6) * 100)}>{recallTrack(recallTarget())}</span>
                                             <span fg={muted}>{" "}{RECALL_LEVELS[recallTarget()]}</span>
                                         </text>
                                     </Fade>
