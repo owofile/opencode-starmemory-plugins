@@ -12,8 +12,17 @@
   <img src="https://img.shields.io/github/last-commit/owofile/opencode-starmemory-plugins" alt="Last Commit" />
 </p>
 
-> [!IMPORTANT]
 > **Memory should be earned, not assumed.** StarMemory doesn't just store facts — it tracks how much each one is worth. Repeatedly used memories gain trust automatically; unused ones cool off and archive, but never vanish. Deep search brings them back.
+
+---
+
+## Installation
+
+Copy and send this to AI for automatic installation:
+
+```
+Install StarMemory v2.2.1: https://github.com/owofile/opencode-starmemory-plugins/tree/main/v2.2.1
+```
 
 ---
 
