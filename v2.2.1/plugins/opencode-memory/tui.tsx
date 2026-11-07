@@ -1368,7 +1368,8 @@ export default Plugin.define({
             const METEOR_MID = "#2a5a8c";    // 中蓝（拖尾中段）
             const METEOR_DEEP = "#16324f";   // 深蓝底（可见，条始终存在）
             const METEOR_TAIL = "#0e2238";   // 拖尾末端（最暗但可见）
-            const METEOR_GLOW_BG = "#0a1a2a"; // 核格背景微亮（光晕）
+            const METEOR_BG_DARK = "#0a1826";  // bg 流光层：暗底
+            const METEOR_BG_LIGHT = "#16324f"; // bg 流光层：亮带（集中在核附近，=DEEP）
             // 单宽闪点（重复 = 加权；宽字符 ✦/emoji 会让条错位，禁用）
             const SPARK_CHARS = ["·", "·", "·", "·", "✧", "⋆", "°"] as const;
             const SPARK_COLORS = ["#ffffff", "#ffe066", "#7fffd4", "#ff9de2"] as const;
@@ -1393,14 +1394,18 @@ export default Plugin.define({
                 const cycle = ((recallFrame() * 33) / 1600) % 1;
                 return cycle * Math.max(1, barW() - 1);
             };
-            // 流星格：核光晕 + 拖尾密度 + 稀疏闪点 + 可选彩虹色带
-            const meteorCell = (i: number): { ch: string; fg: string; bg?: string } => {
+            // 流星格：双层叠加 —— bg 深蓝流光底（亮带随核相位流动）+ fg 流星（核/拖尾/闪点/可选彩虹）
+            const meteorCell = (i: number): { ch: string; fg: string; bg: string } => {
                 const core = meteorCorePos();
                 const d = core - i; // 正=核左边（拖尾）；0=核；负=核右边
-                // —— 核前短辉：只亮 1 格（核“头”更立体）——
+                // —— bg 流光层（底层）：亮带峰在核处，随核相位流动，全条连续 ——
+                const span = Math.max(1, barW());
+                const wave = 0.5 + 0.5 * Math.cos(2 * Math.PI * ((i - core) / span)); // 1 在核处，向两边衰减
+                const bg = lerpHex(METEOR_BG_DARK, METEOR_BG_LIGHT, Math.pow(wave, 2));
+                // —— fg 流星层（表层）：核前短辉，只亮 1 格（核“头”更立体）——
                 if (d < 0) {
-                    if (d > -1.2) return { ch: "█", fg: METEOR_HEAD, bg: METEOR_GLOW_BG };
-                    return { ch: "█", fg: METEOR_DEEP };
+                    if (d > -1.2) return { ch: "█", fg: METEOR_HEAD, bg };
+                    return { ch: "█", fg: METEOR_DEEP, bg };
                 }
                 const trail = Math.max(4, Math.round(barW() * 0.9)); // 拖尾长 90%
                 const t = Math.min(1, d / trail);
@@ -1412,7 +1417,7 @@ export default Plugin.define({
                 if (r < sparkChance) {
                     const ch = SPARK_CHARS[Math.floor(r * 9973) % SPARK_CHARS.length];
                     const fg = SPARK_COLORS[Math.floor(r * 3571) % SPARK_COLORS.length];
-                    return { ch, fg };
+                    return { ch, fg, bg };
                 }
                 // —— 拖尾颜色：彩虹猫可选（设置 meteor_rainbow）/ 默认深蓝 ——
                 const useRainbow = settings.get().meteor_rainbow === true;
@@ -1426,8 +1431,6 @@ export default Plugin.define({
                     })();
                 // —— 字符密度：彗尾消散 █→▓→▒→░ ——
                 const ch = tt < 0.22 ? "█" : tt < 0.52 ? "▓" : tt < 0.80 ? "▒" : "░";
-                // —— 核附近 bg 光晕（若 bg 不生效删掉即可）——
-                const bg = d < 1.8 ? METEOR_GLOW_BG : undefined;
                 return { ch, fg, bg };
             };
             // 兼容薄包装（外部行为不变，内部已升级）
@@ -1457,9 +1460,9 @@ export default Plugin.define({
                                     <span style={{ fg: cell.fg, bg: cell.bg }}>{cell.ch}</span>
                                 );
                             })}
-                            {/* 手柄：流星模式也保持亮色可见（改 METEOR_NEAR 减少双核感） */}
-                            <span style={{ fg: flash() ? "#e6f7ff" : METEOR_NEAR }}>{"▓"}</span>
-                            <span style={{ fg: METEOR_DEEP }}>{"░".repeat(empty())}</span>
+                            {/* 手柄：流星模式保持亮色，bg 亮带延续（双核感低） */}
+                            <span style={{ fg: flash() ? "#e6f7ff" : METEOR_NEAR, bg: METEOR_BG_LIGHT }}>{"▓"}</span>
+                            <span style={{ fg: METEOR_DEEP, bg: METEOR_BG_DARK }}>{"░".repeat(empty())}</span>
                         </>
                     ) : (
                         <>
