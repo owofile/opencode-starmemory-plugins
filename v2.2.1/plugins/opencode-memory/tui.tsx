@@ -1485,15 +1485,26 @@ export default Plugin.define({
                 });
                 return items;
             }
-            // 焦点网格：row 0 = 规则列表（col 跟随项索引），row 1 = 操作行（col 0 编辑选中 / col 1 添加规则）
+            // 焦点：row 0 = 规则列表（纵向，up/down 逐项移动），row 1 = 操作行（col 0 编辑选中 / col 1 添加规则，left/right 移动）
+            // 下移：列表内逐项到底；到底后再按 down 才进操作行（落在"编辑选中"）。上移：操作行 up 回列表（落在上次选中项）。左右：仅操作行有效（列表是纵向的）。
             function devMove(dr: number, dc: number) {
                 const n = devItems().length;
                 const cur = devFocus();
-                const row = Math.max(0, Math.min(1, cur.row + dr));
-                const maxCol = row === 0 ? Math.max(0, n - 1) : 1;
-                const col = Math.max(0, Math.min(maxCol, cur.col + dc));
-                setDevFocus({ row, col });
-                if (row === 0) setDevSel(col); // 列表行选中跟随焦点
+                if (cur.row === 0) {
+                    if (dr > 0) {
+                        if (cur.col >= n - 1) setDevFocus({ row: 1, col: 0 }); // 列表底 → 操作行（编辑选中）
+                        else { const col = cur.col + 1; setDevFocus({ row: 0, col }); setDevSel(col); }
+                    } else if (dr < 0) {
+                        const col = Math.max(0, cur.col - 1);
+                        setDevFocus({ row: 0, col });
+                        setDevSel(col);
+                    }
+                    // dc 忽略（列表纵向）
+                } else {
+                    if (dr < 0) setDevFocus({ row: 0, col: Math.min(devSel(), n - 1) }); // 操作行 up → 回列表选中项
+                    else if (dr === 0) { const col = Math.max(0, Math.min(1, cur.col + dc)); setDevFocus({ row: 1, col }); }
+                    // dr > 0 停在操作行
+                }
             }
             function devActivate() {
                 const { row, col } = devFocus();
