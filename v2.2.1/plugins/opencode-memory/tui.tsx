@@ -462,6 +462,27 @@ function rebuildAgents(base: string, segs: Record<string, SegState>): string {
     return `${basePart}${basePart ? "\n\n" : ""}${SEG_MARK_START}\n${enabledParts.join("\n\n")}\n${SEG_MARK_END}`;
 }
 
+// ---------- 开发者模式（P9：Overview 标题点 5 下解锁；硬性规则快速编辑，不面向用户） ----------
+// 解锁状态存 agents-segments.json 顶层 _devUnlocked（持久，重开 /memory 仍解锁）
+function loadDevUnlocked(): boolean {
+    return !!(readJson(AGENTS_SEGMENTS_PATH)?._devUnlocked);
+}
+function saveDevUnlocked(v: boolean): void {
+    try {
+        const d = readJson(AGENTS_SEGMENTS_PATH) ?? {};
+        d._devUnlocked = v;
+        fs.mkdirSync(CONFIG_DIR, { recursive: true });
+        fs.writeFileSync(AGENTS_SEGMENTS_PATH, JSON.stringify(d, null, 2), "utf-8");
+    } catch {}
+}
+function saveMemoryJson(mem: any): boolean {
+    try {
+        fs.mkdirSync(CONFIG_DIR, { recursive: true });
+        fs.writeFileSync(MEMORY_PATH, JSON.stringify(mem, null, 2), "utf-8");
+        return true;
+    } catch { return false; }
+}
+
 // i18n 字典：MemoryPage 硬编码文字统一走这里。新增 Tab/功能时加 key 即可，zh/en 两套对齐。
 const I18N = {
     zh: {
@@ -515,6 +536,9 @@ const I18N = {
         agentsSegUtf8: "Windows 编码",
         agentsSegDesc: "开=注入 AGENTS.md / 关=隐藏；Enter 切换，编辑按钮改内容",
         agentsEditSeg: "编辑片段",
+        tabDev: "开发者",
+        devRules: "硬性规则",
+        devAddRule: "添加规则",
     },
     en: {
         tabOverview: "Overview", tabList: "List", tabRecall: "Recall", tabAgents: "AGENTS",
@@ -567,6 +591,9 @@ const I18N = {
         agentsSegUtf8: "Windows encoding",
         agentsSegDesc: "on=inject AGENTS.md / off=hide; Enter toggles, edit button edits content",
         agentsEditSeg: "edit segment",
+        tabDev: "Developer",
+        devRules: "hard rules",
+        devAddRule: "add rule",
     },
 } as const;
 type I18nKey = keyof typeof I18N.zh;
@@ -1339,17 +1366,36 @@ export default Plugin.define({
         const MemoryPage = (props: { data?: { q?: string } }) => {
             const [tab, setTab] = createSignal<"overview" | "list" | "recall" | "agents">("overview");
             // Tab 标签：走 i18n（langState 切换即时反映）
-            const tabLabel = (tk: "overview" | "list" | "recall" | "agents") =>
-                tk === "overview" ? t("tabOverview") : tk === "list" ? t("tabList") : tk === "recall" ? t("tabRecall") : t("tabAgents");
+            const tabLabel = (tk: "overview" | "list" | "recall" | "agents" | "dev") =>
+                tk === "overview" ? t("tabOverview") : tk === "list" ? t("tabList") : tk === "recall" ? t("tabRecall") : tk === "agents" ? t("tabAgents") : t("tabDev");
+            // ---- 开发者模式（P9）：Overview 标题点 5 下解锁（硬性规则快速编辑，不面向用户） ----
+            const [devUnlocked, setDevUnlocked] = createSignal(loadDevUnlocked());
+            const [devClicks, setDevClicks] = createSignal(0);
+            const [devMsg, setDevMsg] = createSignal("");
+            const [devSel, setDevSel] = createSignal(0);
+            const DEV_CLICK_TARGET = 5;
+            function devTap() {
+                const n = devClicks() + 1;
+                setDevClicks(n);
+                if (!devUnlocked() && n >= DEV_CLICK_TARGET) {
+                    setDevUnlocked(true);
+                    saveDevUnlocked(true);
+                    setDevMsg("开发者模式已解锁");
+                    context.ui.toast.show({ message: t("tabDev") + " · unlocked", variant: "success" });
+                } else if (!devUnlocked()) {
+                    setDevMsg(`点 ${n}/${DEV_CLICK_TARGET} 解锁开发者模式`);
+                }
+            }
             // 可用 Tab：召回功能关时直接隐藏召回 Tab（与侧栏 RecallBar 门控一致，settings.get().auto_recall === true）
-            // AGENTS Tab 始终可用（P7：管理全局规则文件，与召回无关）
-            const availableTabs = createMemo(() =>
-                settings.get().auto_recall === true
+            // AGENTS Tab 始终可用（P7：管理全局规则文件，与召回无关）；dev 仅解锁后出现（P9）
+            const availableTabs = createMemo(() => {
+                const base = settings.get().auto_recall === true
                     ? (["overview", "list", "recall", "agents"] as const)
-                    : (["overview", "list", "agents"] as const)
-            );
+                    : (["overview", "list", "agents"] as const);
+                return devUnlocked() ? ([...base, "dev"] as const) : base;
+            });
             // 有效 Tab：当前 tab 不可达（功能刚关）时回退 overview，避免空挂
-            const effTab = createMemo<"overview" | "list" | "recall" | "agents">(() => {
+            const effTab = createMemo<"overview" | "list" | "recall" | "agents" | "dev">(() => {
                 const t = tab();
                 return (availableTabs() as readonly string[]).includes(t) ? t : "overview";
             });
@@ -1423,6 +1469,51 @@ export default Plugin.define({
                 setAgentsContent(rebuildAgents(agentsContent(), next));
                 setAgentsTouched(true);
                 setAgentsMsg("");
+            }
+            // ---- 开发者模式（P9）：硬性规则列表（memory.json）快速编辑，不面向用户 ----
+            type DevItem = { kind: "cmd" | "rule" | "pref"; idx: number; label: string; value: string; sub?: string };
+            function devItems(): DevItem[] {
+                const mem = readJson(MEMORY_PATH) ?? {};
+                const items: DevItem[] = [];
+                const cmds = mem.strict?.forbiddenCommands ?? [];
+                (cmds as any[]).forEach((c: any, i: number) => items.push({ kind: "cmd", idx: i, label: `禁止命令 ${i + 1}`, value: c?.pattern ?? "", sub: c?.description }));
+                ((mem.strict?.rules ?? []) as any[]).forEach((r: string, i: number) => items.push({ kind: "rule", idx: i, label: `规则 ${i + 1}`, value: String(r) }));
+                const prefs = mem.user?.preferences ?? {};
+                ["downloadPolicy", "operationConfirmation", "no_emoji", "utf8_encoding_rule"].forEach((k) => {
+                    if (prefs[k]) items.push({ kind: "pref", idx: 0, label: k, value: String(prefs[k]) });
+                });
+                return items;
+            }
+            function devMove(d: number) {
+                const n = devItems().length;
+                setDevSel((s) => Math.max(0, Math.min(n - 1, s + d)));
+            }
+            async function devEdit() {
+                const items = devItems();
+                const it = items[devSel()];
+                if (!it) return;
+                const mem = readJson(MEMORY_PATH) ?? {};
+                const raw = await context.ui.dialog.prompt({ title: `${it.label} · ${t("agentsEdit")}`, placeholder: it.value.slice(0, 60) });
+                if (raw === undefined) return;
+                const v = raw.replace(/\\n/g, "\n");
+                if (it.kind === "cmd") {
+                    const c = mem.strict?.forbiddenCommands?.[it.idx];
+                    if (c) c.pattern = v;
+                } else if (it.kind === "rule") {
+                    mem.strict.rules[it.idx] = v;
+                } else {
+                    mem.user.preferences[it.label] = v;
+                }
+                if (saveMemoryJson(mem)) { setDevMsg("已保存 " + MEMORY_PATH); context.ui.toast.show({ message: "dev saved", variant: "success" }); }
+                else setDevMsg("保存失败");
+            }
+            async function devAddRule() {
+                const mem = readJson(MEMORY_PATH) ?? {};
+                const raw = await context.ui.dialog.prompt({ title: t("devAddRule"), placeholder: t("agentsPlaceholder") });
+                if (raw === undefined) return;
+                mem.strict = mem.strict ?? {}; mem.strict.rules = mem.strict.rules ?? [];
+                mem.strict.rules.push(raw.replace(/\\n/g, "\n"));
+                if (saveMemoryJson(mem)) { setDevMsg("已保存 " + MEMORY_PATH); setDevSel(devItems().length - 1); }
             }
             function agentsReload() {
                 setAgentsContent(loadAgents() ?? "");
@@ -1568,11 +1659,11 @@ export default Plugin.define({
                         const i = tabs.indexOf(effTab());
                         setTab(tabs[(i + 1) % tabs.length]);
                     } },
-                    { id: "opencode.memory.sel.up", bind: "up", run: () => { if (effTab() === "list") selectIndex(selIndex() - 1); else if (effTab() === "agents") agentsMove(-1, 0); else if (effTab() === "recall") recallMove(-1); } },
-                    { id: "opencode.memory.sel.down", bind: "down", run: () => { if (effTab() === "list") selectIndex(selIndex() + 1); else if (effTab() === "agents") agentsMove(1, 0); else if (effTab() === "recall") recallMove(1); } },
+                    { id: "opencode.memory.sel.up", bind: "up", run: () => { if (effTab() === "list") selectIndex(selIndex() - 1); else if (effTab() === "agents") agentsMove(-1, 0); else if (effTab() === "recall") recallMove(-1); else if (effTab() === "dev") devMove(-1); } },
+                    { id: "opencode.memory.sel.down", bind: "down", run: () => { if (effTab() === "list") selectIndex(selIndex() + 1); else if (effTab() === "agents") agentsMove(1, 0); else if (effTab() === "recall") recallMove(1); else if (effTab() === "dev") devMove(1); } },
                     { id: "opencode.memory.sel.left", bind: "left", run: () => { if (effTab() === "agents") agentsMove(0, -1); else if (effTab() === "recall") recallCollapse(); } },
                     { id: "opencode.memory.sel.right", bind: "right", run: () => { if (effTab() === "agents") agentsMove(0, 1); else if (effTab() === "recall") recallExpand(); } },
-                    { id: "opencode.memory.sel.enter", bind: "enter", run: () => { if (effTab() === "agents") agentsActivate(); else if (effTab() === "recall") recallToggle(); } },
+                    { id: "opencode.memory.sel.enter", bind: "enter", run: () => { if (effTab() === "agents") agentsActivate(); else if (effTab() === "recall") recallToggle(); else if (effTab() === "dev") void devEdit(); } },
                     { id: "opencode.memory.fold", bind: "f", run: () => toggleFold(effTab()) },
                     { id: "opencode.memory.manage", bind: "e", run: () => { void browseDialog(); } },
                     { id: "opencode.memory.settings", bind: "s", run: () => { void settingsDialog(); } },
@@ -1742,7 +1833,7 @@ export default Plugin.define({
                 return idx;
             });
 
-            const TypeLine = (props: { start: number; text: string; fg: any; caret?: boolean; right?: string }) => {
+            const TypeLine = (props: { start: number; text: string; fg: any; caret?: boolean; right?: string; onClick?: () => void }) => {
                 const n = createMemo(() => {
                     ms();
                     if (!typingOn()) return props.text.length;
@@ -1753,7 +1844,7 @@ export default Plugin.define({
                     return props.caret && n() < props.text.length ? t + "▌" : t;
                 });
                 return (
-                    <text fg={props.fg}>
+                    <text fg={props.fg} onClick={props.onClick}>
                         {props.right ? (
                             <>
                                 {body()}{" ".repeat(Math.max(1, GAUGE - dw(body()) - dw(props.right)))}
@@ -1853,7 +1944,7 @@ export default Plugin.define({
                     </text>
                     {/* 标题（打字机入场）+ 版本右 */}
                     <For each={HEADER}>
-                        {(s, i) => <TypeLine start={s.start} text={s.text} fg={HEADER_FG(s)} caret={caretIdx() === i()} right={s.right} />}
+                        {(s, i) => <TypeLine start={s.start} text={s.text} fg={HEADER_FG(s)} caret={caretIdx() === i()} right={s.right} onClick={i() === 0 ? devTap : undefined} />}
                     </For>
                     {/* 状态注释行 */}
                     <text fg={muted}>{`// ${st().total} fragments · ${st().byActivation.hot} hot · ${st().byActivation.cold} cold · rev ${rev()} · updated ${lastRevAt.day} ${lastRevAt.clock}`}</text>
@@ -1940,6 +2031,32 @@ export default Plugin.define({
                                     </Show>
                                 </box>
                             </box>
+                            </Show>
+                        </box>
+                    </Show>
+                    <Show when={effTab() === "dev"}>
+                        <box flexDirection="column" flexGrow={1} paddingTop={1}>
+                            <text fg={base} onClick={() => toggleFold("dev")}>
+                                {secHeader("dev · 开发者模式", `${devUnlocked() ? "已解锁" : "未解锁"} · ${t("devRules")}`, !isFolded("dev"), GAUGE)}
+                            </text>
+                            <Show when={!isFolded("dev")}>
+                                <Fade start={BODY_START}>
+                                    <text fg={muted}>{`${t("devRules")} (${MEMORY_PATH}):`}</text>
+                                    <For each={devItems()}>
+                                        {(it, i) => (
+                                            <text fg={devSel() === i() ? accent : base} onClick={() => { setDevSel(i()); void devEdit(); }}>
+                                                {`${devSel() === i() ? "▶" : " "}${it.label}: ${cutDW(oneLine(it.value), 40)}${it.sub ? ` · ${it.sub}` : ""}`}
+                                            </text>
+                                        )}
+                                    </For>
+                                    <box flexDirection="row" gap={1} paddingTop={1}>
+                                        <text fg={accent} onClick={() => void devEdit()}>{`[${t("agentsEdit")}]`}</text>
+                                        <text fg={accent} onClick={() => void devAddRule()}>{`[${t("devAddRule")}]`}</text>
+                                    </box>
+                                    <Show when={devMsg()}>
+                                        <text fg={accent}>{devMsg()}</text>
+                                    </Show>
+                                </Fade>
                             </Show>
                         </box>
                     </Show>
