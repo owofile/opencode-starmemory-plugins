@@ -1510,7 +1510,18 @@ export default Plugin.define({
                     });
             });
 
-            const listFrags = createMemo(() => sorted(loadFragments()));
+            const [filterCat, setFilterCat] = createSignal(""); // N1：list 分类过滤（""=全部）
+            const catList = createMemo(() => { // 当前所有碎片的分类统计（chips 显示，不过滤）
+                const m = new Map<string, number>();
+                for (const f of loadFragments()) { const c = f.category ?? "general"; m.set(c, (m.get(c) || 0) + 1); }
+                return Array.from(m.entries()).sort((a, b) => b[1] - a[1]);
+            });
+            const listFrags = createMemo(() => {
+                let all = sorted(loadFragments());
+                const fc = filterCat();
+                if (fc) all = all.filter((f) => (f.category ?? "general") === fc);
+                return all;
+            });
             const VIEWPORT = createMemo(() => Math.max(4, termRows() - 14)); // 列表可见行数（自适应终端高度，填满空位）
             const selectIndex = (i: number) => {
                 const max = listFrags().length - 1;
@@ -1785,6 +1796,17 @@ export default Plugin.define({
                         <box flexDirection="column" flexGrow={1} paddingTop={1}>
                             <text fg={base} onClick={() => toggleFold("list")}>{secHeader("fragments", `${listFrags().length} · ↑↓ select · #${selIndex() + 1}`, !isFolded("list"), GAUGE)}</text>
                             <Show when={!isFolded("list")}>
+                            {/* N1：分类过滤 chips（点击过滤 / 再点清除；关键词搜索用 /memory <关键词> slash 命令） */}
+                            <box flexDirection="row" gap={1}>
+                                <text fg={filterCat() === "" ? base : muted} selectable={false} onClick={() => setFilterCat("")}>{"[全部]"}</text>
+                                <For each={catList()}>
+                                    {(c) => (
+                                        <text fg={filterCat() === c[0] ? base : muted} selectable={false} onClick={() => setFilterCat(filterCat() === c[0] ? "" : c[0])}>
+                                            {`[${c[0]}×${c[1]}]`}
+                                        </text>
+                                    )}
+                                </For>
+                            </box>
                             <box flexDirection="row" flexGrow={1}>
                                 <box flexDirection="column" flexGrow={1} flexBasis={0} minWidth={0}>
                                     <For each={visible()}>
