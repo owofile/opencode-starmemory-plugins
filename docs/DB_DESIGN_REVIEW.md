@@ -42,6 +42,8 @@ Schema 文档承诺梦想家按 `memory_type` 分化 stability/decay_rate，但�
 ### 🟡 偏差-5（新发现）：deep-search 归档查询整句 LIKE 脆弱
 `searchInArchive` 用 `content LIKE '%<整句query>%'`——query 含空格/停顿词时整句不匹配（实测 `spider2 背面漩涡 shader 架构` 0 命中，因 content 中"最终"插在中间）。单词查询（`shader`）正常命中。应改分词 LIKE（OR 多个词）。低优先级。
 
+> **✅ 已修复（commit `149ee44`）**：`searchInJson` + `searchInArchive` 统一**分词匹配**（`tokenizeQuery`：按空白/中英文标点拆分、过滤单字），整句 LIKE/includes 改为**逐词 OR + 命中计分**（content +1 / assoc +0.8，archive 项也补 matchScore 保证排序一致）。实测：之前 0 命中查询 `spider2 背面漩涡 shader 架构` 现在 **3 命中**（top matchScore 7.2 最相关）。
+
 ---
 
 ## 三、修复计划（按优先级）
@@ -50,7 +52,7 @@ Schema 文档承诺梦想家按 `memory_type` 分化 stability/decay_rate，但�
 2. **一次性迁移 `migrateDecayParams`**：现有碎片按类型补正确衰减参数，温度衰减立即生效 —— ✅ 已完成（热重载实测 29 条全部分化）
 3. **实测 compact**：验证归档层 SQLite 链路端到端（fragment_archive.db 建表/列迁移/插入/恢复）—— ✅ 已完成（实测 auto 归档 1 条 + deep-search 查回 + restore 恢复，链路完整；**偏差-3 修正**：归档层本就验证过 8/24）
 
-> **待处理**：~~偏差-4 归档 DB 移至 config 目录~~（✅ 已修复 commit `ec8fcb3`）；偏差-5 deep-search 整句 LIKE 改分词（低优先级）
+> **待处理**：~~偏差-4 归档 DB 移至 config 目录~~（✅ 已修复 commit `ec8fcb3`）；~~偏差-5 deep-search 整句 LIKE 改分词~~（✅ 已修复 commit `149ee44`）——**数据库设计评估发现的偏差全部修复**
 
 ---
 
