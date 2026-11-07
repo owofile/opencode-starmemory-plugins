@@ -1373,6 +1373,7 @@ export default Plugin.define({
             const [devClicks, setDevClicks] = createSignal(0);
             const [devMsg, setDevMsg] = createSignal("");
             const [devSel, setDevSel] = createSignal(0);
+            const [devFocus, setDevFocus] = createSignal({ row: 0, col: 0 }); // 焦点网格：row 0 规则列表 / row 1 操作行（编辑选中、添加规则）
             const DEV_CLICK_TARGET = 7;
             function devTap() {
                 const n = devClicks() + 1;
@@ -1484,10 +1485,23 @@ export default Plugin.define({
                 });
                 return items;
             }
-            function devMove(d: number) {
+            // 焦点网格：row 0 = 规则列表（col 跟随项索引），row 1 = 操作行（col 0 编辑选中 / col 1 添加规则）
+            function devMove(dr: number, dc: number) {
                 const n = devItems().length;
-                setDevSel((s) => Math.max(0, Math.min(n - 1, s + d)));
+                const cur = devFocus();
+                const row = Math.max(0, Math.min(1, cur.row + dr));
+                const maxCol = row === 0 ? Math.max(0, n - 1) : 1;
+                const col = Math.max(0, Math.min(maxCol, cur.col + dc));
+                setDevFocus({ row, col });
+                if (row === 0) setDevSel(col); // 列表行选中跟随焦点
             }
+            function devActivate() {
+                const { row, col } = devFocus();
+                if (row === 0) { setDevSel(col); void devEdit(); }
+                else if (col === 0) void devEdit(); // 编辑选中（devSel 保持上次列表焦点）
+                else void devAddRule();
+            }
+            const devFocusOn = (row: number, col: number) => devFocus().row === row && devFocus().col === col;
             async function devEdit() {
                 const items = devItems();
                 const it = items[devSel()];
@@ -1513,7 +1527,7 @@ export default Plugin.define({
                 if (raw === undefined) return;
                 mem.strict = mem.strict ?? {}; mem.strict.rules = mem.strict.rules ?? [];
                 mem.strict.rules.push(raw.replace(/\\n/g, "\n"));
-                if (saveMemoryJson(mem)) { setDevMsg("已保存 " + MEMORY_PATH); setDevSel(devItems().length - 1); }
+                if (saveMemoryJson(mem)) { setDevMsg("已保存 " + MEMORY_PATH); const n = devItems().length - 1; setDevSel(n); setDevFocus({ row: 0, col: n }); }
             }
             function agentsReload() {
                 setAgentsContent(loadAgents() ?? "");
@@ -1659,11 +1673,11 @@ export default Plugin.define({
                         const i = tabs.indexOf(effTab());
                         setTab(tabs[(i + 1) % tabs.length]);
                     } },
-                    { id: "opencode.memory.sel.up", bind: "up", run: () => { if (effTab() === "list") selectIndex(selIndex() - 1); else if (effTab() === "agents") agentsMove(-1, 0); else if (effTab() === "recall") recallMove(-1); else if (effTab() === "dev") devMove(-1); } },
-                    { id: "opencode.memory.sel.down", bind: "down", run: () => { if (effTab() === "list") selectIndex(selIndex() + 1); else if (effTab() === "agents") agentsMove(1, 0); else if (effTab() === "recall") recallMove(1); else if (effTab() === "dev") devMove(1); } },
-                    { id: "opencode.memory.sel.left", bind: "left", run: () => { if (effTab() === "agents") agentsMove(0, -1); else if (effTab() === "recall") recallCollapse(); } },
-                    { id: "opencode.memory.sel.right", bind: "right", run: () => { if (effTab() === "agents") agentsMove(0, 1); else if (effTab() === "recall") recallExpand(); } },
-                    { id: "opencode.memory.sel.enter", bind: "enter", run: () => { if (effTab() === "agents") agentsActivate(); else if (effTab() === "recall") recallToggle(); else if (effTab() === "dev") void devEdit(); } },
+                    { id: "opencode.memory.sel.up", bind: "up", run: () => { if (effTab() === "list") selectIndex(selIndex() - 1); else if (effTab() === "agents") agentsMove(-1, 0); else if (effTab() === "recall") recallMove(-1); else if (effTab() === "dev") devMove(-1, 0); } },
+                    { id: "opencode.memory.sel.down", bind: "down", run: () => { if (effTab() === "list") selectIndex(selIndex() + 1); else if (effTab() === "agents") agentsMove(1, 0); else if (effTab() === "recall") recallMove(1); else if (effTab() === "dev") devMove(1, 0); } },
+                    { id: "opencode.memory.sel.left", bind: "left", run: () => { if (effTab() === "agents") agentsMove(0, -1); else if (effTab() === "recall") recallCollapse(); else if (effTab() === "dev") devMove(0, -1); } },
+                    { id: "opencode.memory.sel.right", bind: "right", run: () => { if (effTab() === "agents") agentsMove(0, 1); else if (effTab() === "recall") recallExpand(); else if (effTab() === "dev") devMove(0, 1); } },
+                    { id: "opencode.memory.sel.enter", bind: "enter", run: () => { if (effTab() === "agents") agentsActivate(); else if (effTab() === "recall") recallToggle(); else if (effTab() === "dev") devActivate(); } },
                     { id: "opencode.memory.dev", bind: "d", run: () => { if (effTab() === "overview") devTap(); } },
                     { id: "opencode.memory.fold", bind: "f", run: () => toggleFold(effTab()) },
                     { id: "opencode.memory.manage", bind: "e", run: () => { void browseDialog(); } },
@@ -2045,14 +2059,14 @@ export default Plugin.define({
                                     <text fg={muted}>{`${t("devRules")} (${MEMORY_PATH}):`}</text>
                                     <For each={devItems()}>
                                         {(it, i) => (
-                                            <text fg={devSel() === i() ? accent : base} onClick={() => { setDevSel(i()); void devEdit(); }}>
-                                                {`${devSel() === i() ? "▶" : " "}${it.label}: ${cutDW(oneLine(it.value), 40)}${it.sub ? ` · ${it.sub}` : ""}`}
+                                            <text fg={devFocusOn(0, i()) ? accent : base} onClick={() => { setDevFocus({ row: 0, col: i() }); setDevSel(i()); void devEdit(); }}>
+                                                {`${devFocusOn(0, i()) ? "▶" : " "}${it.label}: ${cutDW(oneLine(it.value), 40)}${it.sub ? ` · ${it.sub}` : ""}`}
                                             </text>
                                         )}
                                     </For>
                                     <box flexDirection="row" gap={1} paddingTop={1}>
-                                        <text fg={accent} onClick={() => void devEdit()}>{`[${t("agentsEdit")}]`}</text>
-                                        <text fg={accent} onClick={() => void devAddRule()}>{`[${t("devAddRule")}]`}</text>
+                                        <text fg={devFocusOn(1, 0) ? accent : base} onClick={() => { setDevFocus({ row: 1, col: 0 }); void devEdit(); }}>{`${devFocusOn(1, 0) ? "▶" : " "}[${t("agentsEdit")}]`}</text>
+                                        <text fg={devFocusOn(1, 1) ? accent : base} onClick={() => { setDevFocus({ row: 1, col: 1 }); void devAddRule(); }}>{`${devFocusOn(1, 1) ? "▶" : " "}[${t("devAddRule")}]`}</text>
                                     </box>
                                     <Show when={devMsg()}>
                                         <text fg={accent}>{devMsg()}</text>
