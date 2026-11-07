@@ -1118,6 +1118,69 @@ export default Plugin.define({
             });
 
             editor.add({
+                name: "memory_export",
+                description: "导出碎片记忆+长期记忆到备份 JSON（默认 CONFIG_DIR/memory-backup-时间戳.json）",
+                input: objectSchema({
+                    path: stringSchema("导出路径（可选，默认配置目录下带时间戳）"),
+                }),
+                async execute(args) {
+                    try {
+                        const fragments = loadFragments();
+                        const memory = loadMemory() || {};
+                        const backup = {
+                            version: "2.2.1",
+                            exported_at: new Date().toISOString(),
+                            fragments,
+                            memory,
+                        };
+                        const ts = new Date().toISOString().replace(/[:.]/g, "-");
+                        const outPath = args.path || path.join(CONFIG_DIR, `memory-backup-${ts}.json`);
+                        fs.mkdirSync(path.dirname(outPath), { recursive: true });
+                        fs.writeFileSync(outPath, JSON.stringify(backup, null, 2), "utf-8");
+                        return textResult(JSON.stringify({ success: true, path: outPath, fragments: fragments.length, exported_at: backup.exported_at }, null, 2));
+                    } catch (e) {
+                        return textResult(JSON.stringify({ success: false, error: e.message }, null, 2));
+                    }
+                },
+            });
+
+            editor.add({
+                name: "memory_import",
+                description: "从备份 JSON 导入碎片记忆（mode=merge 按 id 去重合并 / replace 整体替换，默认 merge；长期记忆不自动覆盖）",
+                input: objectSchema({
+                    path: stringSchema("备份 JSON 路径（必填）"),
+                    mode: enumSchema(["merge", "replace"], "导入模式，默认 merge"),
+                }, ["path"]),
+                async execute(args) {
+                    try {
+                        if (!args.path || !fs.existsSync(args.path)) {
+                            return textResult(JSON.stringify({ success: false, error: "文件不存在: " + args.path }, null, 2));
+                        }
+                        const data = JSON.parse(fs.readFileSync(args.path, "utf-8"));
+                        const inFrags = Array.isArray(data.fragments) ? data.fragments : [];
+                        if (!inFrags.length) {
+                            return textResult(JSON.stringify({ success: false, error: "备份无碎片（fragments 为空）" }, null, 2));
+                        }
+                        const mode = args.mode || "merge";
+                        const cur = loadFragments();
+                        let result;
+                        if (mode === "replace") {
+                            saveFragments(inFrags);
+                            result = { mode, imported: inFrags.length, total: inFrags.length };
+                        } else {
+                            const curIds = new Set(cur.map((f) => f.id));
+                            const added = inFrags.filter((f) => !curIds.has(f.id));
+                            saveFragments([...cur, ...added]);
+                            result = { mode, imported: added.length, skipped: inFrags.length - added.length, total: cur.length + added.length };
+                        }
+                        return textResult(JSON.stringify({ success: true, ...result }, null, 2));
+                    } catch (e) {
+                        return textResult(JSON.stringify({ success: false, error: e.message }, null, 2));
+                    }
+                },
+            });
+
+            editor.add({
                 name: "memory_recall_set",
                 description: "设置自动召回档位（0-6，0=OFF；写 recall-runtime.json，TUI 滑块实时读取）",
                 input: objectSchema({
