@@ -510,6 +510,28 @@ function computeRelevance(f, terms) {
     return Math.min(1, hits / Math.min(userWords.length, 4));
 }
 
+// P3 召回质量（2026-11-07）：佐证加权 + 内容近似去重。轻量实现（碎片数 ≤200，直接两两计算，无需 MinHash/embedding）。
+const DUP_THRESHOLD = 0.6; // 内容近似度阈值：>0.6 视为近重复（只留排序更优的，防冗余挤占预算）
+function sourceBoost(st) {
+    if (st === "user_confirmed") return 0.08; // 用户确认 > 佐证 > 推断（信任加权，参考 RAG re-ranking）
+    if (st === "corroborated") return 0.05;
+    return 0;
+}
+function shingleSet(s, k = 3) {
+    s = String(s || "").toLowerCase().replace(/\s+/g, " ").trim();
+    const set = new Set();
+    for (let i = 0; i + k <= s.length; i++) set.add(s.slice(i, i + k));
+    return set;
+}
+function jaccardShingle(a, b) {
+    const sa = shingleSet(a), sb = shingleSet(b);
+    if (!sa.size || !sb.size) return 0;
+    let inter = 0;
+    for (const x of sa) if (sb.has(x)) inter++;
+    const union = sa.size + sb.size - inter;
+    return union ? inter / union : 0;
+}
+
 // 四道闸门 + 冷记忆特判 + 排序 + Token 预算截断（只读，不写库）
 function autoRecallCandidates(query, params, now = Date.now()) {
     if (!params || params.effort === 0 || params.topK <= 0) return [];
@@ -530,18 +552,25 @@ function autoRecallCandidates(query, params, now = Date.now()) {
         }
         scored.push({ ...f, relevance: rel, temperature: temp });
     }
-    // 排序：(相关性*α + 温度*β + 置信度*γ)
+    // P3 排序：基础分(相关性*0.5 + 温度*0.3 + 置信度*0.2) × 佐证加成(1 + sourceBoost)。
+    // 佐证加成让"用户确认/多来源印证"的记忆在相关性相近时优先（更可信，参考 RAG re-ranking 信任加权）。
     scored.sort((a, b) => {
-        const sa = a.relevance * 0.5 + a.temperature * 0.3 + (typeof a.confidence === "number" ? a.confidence : 0.5) * 0.2;
-        const sb = b.relevance * 0.5 + b.temperature * 0.3 + (typeof b.confidence === "number" ? b.confidence : 0.5) * 0.2;
+        const sa = (a.relevance * 0.5 + a.temperature * 0.3 + (typeof a.confidence === "number" ? a.confidence : 0.5) * 0.2) * (1 + sourceBoost(a.source_type));
+        const sb = (b.relevance * 0.5 + b.temperature * 0.3 + (typeof b.confidence === "number" ? b.confidence : 0.5) * 0.2) * (1 + sourceBoost(b.source_type));
         return sb - sa;
     });
     // 逐条累加 Token，达预算上限立刻截断，绝不超发
+    // P3 去重：已选碎片两两内容近似度(Jaccard 3-gram shingle) > DUP_THRESHOLD → 跳过（近重复只留更优，防冗余挤占预算）
     const budgetTokens = Math.floor(params.budget * BASE_CONTEXT_TOKENS);
     const selected = [];
     let acc = 0;
     for (const c of scored) {
         if (selected.length >= params.topK) break;
+        let dup = false;
+        for (const sel of selected) {
+            if (jaccardShingle(c.content || "", sel.content || "") > DUP_THRESHOLD) { dup = true; break; }
+        }
+        if (dup) continue;
         const tok = Math.max(1, Math.ceil((c.content || "").length / 3));
         if (acc + tok > budgetTokens && selected.length > 0) break;
         selected.push({ ...c, tokens: tok });
