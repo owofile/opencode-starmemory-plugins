@@ -469,8 +469,11 @@ function setRecallLevel(effort) {
     const lv = Math.max(0, Math.min(6, Number(effort) || 0));
     const cur = loadRecallParams();
     const rec = { enabled: cur.enabled, effort: lv, updated_at: new Date().toISOString() };
-    fs.writeFileSync(RECALL_RUNTIME_PATH, JSON.stringify(rec, null, 2));
-    _recallParams = { enabled: cur.enabled, ...RECALL_PRESETS[lv], updated_at: rec.updated_at, _mtime: Date.now() };
+    try {
+        fs.mkdirSync(CONFIG_DIR, { recursive: true });
+        fs.writeFileSync(RECALL_RUNTIME_PATH, JSON.stringify(rec, null, 2));
+        _recallParams = { enabled: cur.enabled, ...RECALL_PRESETS[lv], updated_at: rec.updated_at, _mtime: Date.now() };
+    } catch {}
     return { ..._recallParams };
 }
 
@@ -478,8 +481,11 @@ function setRecallLevel(effort) {
 function setRecallEnabled(enabled) {
     const cur = loadRecallParams();
     const rec = { enabled: !!enabled, effort: cur.effort, updated_at: new Date().toISOString() };
-    fs.writeFileSync(RECALL_RUNTIME_PATH, JSON.stringify(rec, null, 2));
-    _recallParams = { enabled: !!enabled, ...RECALL_PRESETS[cur.effort], updated_at: rec.updated_at, _mtime: Date.now() };
+    try {
+        fs.mkdirSync(CONFIG_DIR, { recursive: true });
+        fs.writeFileSync(RECALL_RUNTIME_PATH, JSON.stringify(rec, null, 2));
+        _recallParams = { enabled: !!enabled, ...RECALL_PRESETS[cur.effort], updated_at: rec.updated_at, _mtime: Date.now() };
+    } catch {}
     return { ..._recallParams };
 }
 

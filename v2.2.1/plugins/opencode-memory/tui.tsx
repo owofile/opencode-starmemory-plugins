@@ -1964,6 +1964,7 @@ export default Plugin.define({
                     const ageMs = Date.now() - new Date(lastRecallShownT).getTime();
                     if (ageMs > RECALL_AUTO_HIDE_MS) setRecallEvent(null);
                 }
+                if (!fs.existsSync(RECALL_HOOK_LOG)) return; // 文件尚未创建（首次召回前）→ 跳过，避免每 2s 抛异常
                 const m = fs.statSync(RECALL_HOOK_LOG).mtimeMs;
                 if (m === lastRecallLogMtime) return;
                 lastRecallLogMtime = m;
