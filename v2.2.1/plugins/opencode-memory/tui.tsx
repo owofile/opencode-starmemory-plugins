@@ -1357,16 +1357,14 @@ export default Plugin.define({
             const barColor = () => recallColor(pct()); // 渐变：0%浅绿→50%黄→100%深红（主题色，往 MAX 变深）
             const flash = () => Date.now() - recallFlashAt < 240; // 刚变更 → 手柄提亮（操作反馈）
             const valStr = () => " ".repeat(Math.max(0, valW() - dw(lvName()))) + lvName(); // 右对齐
-            // ---- 流星特效（召回 MAX 后 2s：亮核+拖尾，深蓝流光）----
-            // 触发：档位=6（MAX）且设置开 → 满 2 秒后整条变深蓝流星；非 MAX 复位。
+            // ---- 流星特效（拖到 MAX 立即：亮核+拖尾，深蓝流光）----
+            // 触发：档位=6（MAX）且设置开 → 整条立即变深蓝流星；拖回非 MAX 立即恢复（丝滑无延迟）。
             const METEOR_CORE = "#cfeaff"; // 亮核（亮蓝白）
             const METEOR_DEEP = "#0b2340"; // 深海军蓝（拖尾末端/底色）
-            let meteorArmedAt = 0; // 到达 MAX 的时间戳（惰性设置）
+            // 设置开（默认开）且档位=MAX → 立即进入流星；拖回非 MAX 立即恢复
             const meteorOn = (): boolean => {
                 if (settings.get().meteor === false) return false; // 设置关
-                if (recallTarget() !== 6) { meteorArmedAt = 0; return false; } // 非 MAX → 复位
-                if (!meteorArmedAt) meteorArmedAt = Date.now();
-                return Date.now() - meteorArmedAt >= 2000; // 到 MAX 满 2 秒
+                return recallTarget() === 6; // 拖到 MAX 立即出现，拖回即消失
             };
             // 核位置：0..barW-1 循环移动（约 1.6s 划过一次，流淌感）
             const meteorCorePos = (): number => {
