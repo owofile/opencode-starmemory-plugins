@@ -37,6 +37,8 @@ Schema 文档承诺梦想家按 `memory_type` 分化 stability/decay_rate，但�
 ### 🔴 偏差-4（新发现）：归档 DB 在插件安装目录
 `fragment_archive.db` 路径 = `plugins/opencode-memory/external/`（4 个外部脚本统一）。这是**代码/安装目录**，不是用户 config 目录 → **更新/重装插件会丢归档数据**（fragments.json/memory.json 在 `.config/opencode/` 安全，归档 DB 不安全）。应移至 `config/opencode/fragment_archive.db`（与 fragments.json 同层）。
 
+> **✅ 已修复（commit `ec8fcb3`）**：4 个外部脚本 DB_PATH 统一改 `config/opencode/fragment_archive.db`；本地数据已迁移（copy 验证 MD5 SAME + 删旧源）；新路径验证工作正常（archive_status + deep-search 无 error）。**归档数据现在与 fragments.json 同层，插件更新/重装不再丢归档**。
+
 ### 🟡 偏差-5（新发现）：deep-search 归档查询整句 LIKE 脆弱
 `searchInArchive` 用 `content LIKE '%<整句query>%'`——query 含空格/停顿词时整句不匹配（实测 `spider2 背面漩涡 shader 架构` 0 命中，因 content 中"最终"插在中间）。单词查询（`shader`）正常命中。应改分词 LIKE（OR 多个词）。低优先级。
 
@@ -48,7 +50,7 @@ Schema 文档承诺梦想家按 `memory_type` 分化 stability/decay_rate，但�
 2. **一次性迁移 `migrateDecayParams`**：现有碎片按类型补正确衰减参数，温度衰减立即生效 —— ✅ 已完成（热重载实测 29 条全部分化）
 3. **实测 compact**：验证归档层 SQLite 链路端到端（fragment_archive.db 建表/列迁移/插入/恢复）—— ✅ 已完成（实测 auto 归档 1 条 + deep-search 查回 + restore 恢复，链路完整；**偏差-3 修正**：归档层本就验证过 8/24）
 
-> **待处理**：偏差-4 归档 DB 移至 config 目录（更新/重装丢归档，需移动数据）；偏差-5 deep-search 整句 LIKE 改分词（低优先级）
+> **待处理**：~~偏差-4 归档 DB 移至 config 目录~~（✅ 已修复 commit `ec8fcb3`）；偏差-5 deep-search 整句 LIKE 改分词（低优先级）
 
 ---
 
