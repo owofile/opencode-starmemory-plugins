@@ -1395,9 +1395,9 @@ export default Plugin.define({
                 // —— 环形距离：核绕条一圈，拖尾跨接缝连续（无跳变，循环流畅）——
                 const ad = ((i - core) % span + span) % span; // 沿移动方向 i 在核前方距离（0..span-1）
                 const td = ((core - i) % span + span) % span; // 沿移动方向 i 在核后方距离（0..span-1）
-                // —— 边缘淡入淡出：核临近接缝(左右缘)时溶解/凝聚，跳变发生在不可见状态（无缝循环）——
+                // —— 边缘淡入淡出：只淡"亮头+近核"，拖尾远端环形常亮（连续流动，接入流畅）——
                 const pos = core / Math.max(1, span - 1);
-                const edgeFade = Math.max(0, Math.min(1, Math.min(pos, 1 - pos) / 0.12));
+                const edgeFade = Math.max(0, Math.min(1, Math.min(pos, 1 - pos) / 0.08));
                 const coreGlow = 0.75 + 0.25 * Math.sin(2 * Math.PI * (frameMs / 1600));
                 // —— 核前辉光：前方 2 格平滑衰减（亮头前缘，无硬边）——
                 if (ad <= 2) {
@@ -1419,7 +1419,10 @@ export default Plugin.define({
                     })();
                 // —— 呼吸提亮：平滑渐变（近核幅度大，尾端几乎不动），连贯光波，无硬切 ——
                 const bright = useRainbow ? "#ffffff" : METEOR_HEAD; // 恒比 baseFg 亮（一致提亮）
-                const fg = lerpHex(lerpHex(baseFg, bright, breath * (1 - tt) * 0.4), bg, 1 - edgeFade);
+                let fg = lerpHex(baseFg, bright, breath * (1 - tt) * 0.4);
+                // 只近核（td<3）在接缝淡出，远端拖尾环形常亮（接入流畅）
+                const nearFade = 1 - Math.min(1, td / 3);
+                fg = lerpHex(fg, bg, (1 - edgeFade) * nearFade);
                 return { ch: "█", fg, bg }; // 整条单字符 █ + 纯色渐变，无 █▓▒░ 硬台阶
             };
             // 兼容薄包装（外部行为不变，内部已升级）
