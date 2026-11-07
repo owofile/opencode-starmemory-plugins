@@ -32,13 +32,23 @@ Schema 文档承诺梦想家按 `memory_type` 分化 stability/decay_rate，但�
 ### 🟡 偏差-3：归档层未端到端验证
 `fragment_archive.db` 不存在（从未跑 compact）。29 碎片、13 条死记忆未到归档线合理，但 compactor/restorer/deep-search 的 SQLite 链路从未实际跑通。
 
+> **✅ 修正（2026-11-07）**：`fragment_archive.db` 实际存在于 `plugins/opencode-memory/external/`（32KB，last_compact 2026-08-24），归档层**跑通过**（早前查错路径）。本次实测 auto compact（归档 1 条 spider2 背面漩涡 shader）+ deep-search "shader" 查回 + restore 恢复到 JSON（source="archive"）——**插入/查询/恢复链路完整工作**。原评估"55 分端到端验证"应修正为**归档层已验证，召回/检索/分类/归档四链路均通**。
+
+### 🔴 偏差-4（新发现）：归档 DB 在插件安装目录
+`fragment_archive.db` 路径 = `plugins/opencode-memory/external/`（4 个外部脚本统一）。这是**代码/安装目录**，不是用户 config 目录 → **更新/重装插件会丢归档数据**（fragments.json/memory.json 在 `.config/opencode/` 安全，归档 DB 不安全）。应移至 `config/opencode/fragment_archive.db`（与 fragments.json 同层）。
+
+### 🟡 偏差-5（新发现）：deep-search 归档查询整句 LIKE 脆弱
+`searchInArchive` 用 `content LIKE '%<整句query>%'`——query 含空格/停顿词时整句不匹配（实测 `spider2 背面漩涡 shader 架构` 0 命中，因 content 中"最终"插在中间）。单词查询（`shader`）正常命中。应改分词 LIKE（OR 多个词）。低优先级。
+
 ---
 
 ## 三、修复计划（按优先级）
 
 1. **修 BUG-1 + 补类型分化**：加 `TYPE_DECAY` 分化表（semantic 慢衰减 → episodic 快衰减），巩固时用 `stability === undefined || === 1.0` 判断（默认伪造值视为未设置），按 memory_type 设 stability/decay_rate —— ✅ 已完成（commit `d1e28ab`）
 2. **一次性迁移 `migrateDecayParams`**：现有碎片按类型补正确衰减参数，温度衰减立即生效 —— ✅ 已完成（热重载实测 29 条全部分化）
-3. **实测 compact**：验证归档层 SQLite 链路端到端（fragment_archive.db 建表/列迁移/插入/恢复）—— ⏳ 待做
+3. **实测 compact**：验证归档层 SQLite 链路端到端（fragment_archive.db 建表/列迁移/插入/恢复）—— ✅ 已完成（实测 auto 归档 1 条 + deep-search 查回 + restore 恢复，链路完整；**偏差-3 修正**：归档层本就验证过 8/24）
+
+> **待处理**：偏差-4 归档 DB 移至 config 目录（更新/重装丢归档，需移动数据）；偏差-5 deep-search 整句 LIKE 改分词（低优先级）
 
 ---
 
