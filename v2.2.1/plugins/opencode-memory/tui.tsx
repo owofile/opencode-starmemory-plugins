@@ -1071,6 +1071,7 @@ export default Plugin.define({
                 hotkey: true,
                 typing: true,
                 panel_border: true,
+                meteor: true, // 流星特效（召回滑块 MAX 后 2s 深蓝流光），可关
                 auto_recall: loadRecallRuntime().enabled, // 功能开关：开=显示滑块+自动召回生效；关=仅主动召回
                 ...(loadFragConfig().tui ?? {}),
             };
@@ -1227,6 +1228,7 @@ export default Plugin.define({
                     { title: `快捷键 ctrl+shift+m: ${s.hotkey ? "开" : "关"}`, value: "hotkey" },
                     { title: `打字机动效: ${typingOn() ? "开" : "关"}`, value: "typing" },
                     { title: `面板边框: ${s.panel_border ? "开" : "关"}`, value: "panel_border" },
+                    { title: `流星特效(召回MAX后): ${s.meteor !== false ? "开" : "关"}`, value: "meteor" },
                     { title: "关于", value: "about", selection: "none" },
                 ],
             });
@@ -1355,6 +1357,30 @@ export default Plugin.define({
             const barColor = () => recallColor(pct()); // 渐变：0%浅绿→50%黄→100%深红（主题色，往 MAX 变深）
             const flash = () => Date.now() - recallFlashAt < 240; // 刚变更 → 手柄提亮（操作反馈）
             const valStr = () => " ".repeat(Math.max(0, valW() - dw(lvName()))) + lvName(); // 右对齐
+            // ---- 流星特效（召回 MAX 后 2s：亮核+拖尾，深蓝流光）----
+            // 触发：档位=6（MAX）且设置开 → 满 2 秒后整条变深蓝流星；非 MAX 复位。
+            const METEOR_CORE = "#cfeaff"; // 亮核（亮蓝白）
+            const METEOR_DEEP = "#0b2340"; // 深海军蓝（拖尾末端/底色）
+            let meteorArmedAt = 0; // 到达 MAX 的时间戳（惰性设置）
+            const meteorOn = (): boolean => {
+                if (settings.get().meteor === false) return false; // 设置关
+                if (recallTarget() !== 6) { meteorArmedAt = 0; return false; } // 非 MAX → 复位
+                if (!meteorArmedAt) meteorArmedAt = Date.now();
+                return Date.now() - meteorArmedAt >= 2000; // 到 MAX 满 2 秒
+            };
+            // 核位置：0..barW-1 循环移动（约 1.6s 划过一次，流淌感）
+            const meteorCorePos = (): number => {
+                const cycle = ((recallFrame() * 33) / 1600) % 1;
+                return cycle * Math.max(1, barW() - 1);
+            };
+            // 字符颜色：核最亮，向左拖尾渐暗到深蓝，核前方深蓝底
+            const meteorCharColor = (i: number): string => {
+                const core = meteorCorePos();
+                const d = core - i; // 正=核左边（拖尾）；0=核；负=核右边
+                if (d < 0) return METEOR_DEEP;
+                const trail = Math.max(2, Math.round(barW() * 0.6)); // 拖尾长 60%
+                return lerpHex(METEOR_CORE, METEOR_DEEP, Math.min(1, d / trail));
+            };
             // ---- 命中区：整条 bar 都可拖（修复不跟手 3 连） ----
             // ① bar 起点偏移：行起点 = label(labelW) + gap(1) → bar 从 labelW+1 列才开始；点击需减偏移
             const BAR_OFFSET = () => props.labelW + 1;
@@ -1371,10 +1397,22 @@ export default Plugin.define({
                 <text selectable={false} onMouseDown={onDown} onMouseDrag={onDrag} onMouseUp={onUp}>
                     {/* label 等宽列（padEndDW 到 PANEL_LABEL_W）+ 1 空格 gap；span 颜色必须 style.fg（直接 fg prop 不生效） */}
                     <span style={{ fg: muted }}>{padEndDW(props.label, PANEL_LABEL_W) + " "}</span>
-                    {/* 渐变填充 + 1 字符手柄 + 背景 */}
-                    <span style={{ fg: barColor() }}>{"█".repeat(fill())}</span>
-                    <span style={{ fg: flash() ? base : accent }}>{"▓"}</span>
-                    <span style={{ fg: dimColor(muted, 0.65) }}>{"░".repeat(empty())}</span>
+                    {/* 渐变填充 + 1 字符手柄 + 背景；流星模式：亮核+拖尾深蓝流光（逐字符着色） */}
+                    {meteorOn() ? (
+                        <>
+                            {Array.from({ length: fill() }).map((_, i) => (
+                                <span style={{ fg: meteorCharColor(i) }}>█</span>
+                            ))}
+                            <span style={{ fg: meteorCharColor(fill()) }}>{"▓"}</span>
+                            <span style={{ fg: METEOR_DEEP }}>{"░".repeat(empty())}</span>
+                        </>
+                    ) : (
+                        <>
+                            <span style={{ fg: barColor() }}>{"█".repeat(fill())}</span>
+                            <span style={{ fg: flash() ? base : accent }}>{"▓"}</span>
+                            <span style={{ fg: dimColor(muted, 0.65) }}>{"░".repeat(empty())}</span>
+                        </>
+                    )}
                     {/* 2 空格 gap + 档位名（右对齐） */}
                     <span style={{ fg: muted }}>{"  "}</span>
                     <span style={{ fg: barColor() }}>{valStr()}</span>
