@@ -5,7 +5,7 @@ import * as path from "path";
 const HOME_DIR = process.env.USERPROFILE || "";
 const CONFIG_PATH = path.join(HOME_DIR, ".config", "opencode", "plugins", "opencode-memory", "fragment-config.json");
 const FRAGMENTS_PATH = path.join(HOME_DIR, ".config", "opencode", "fragments.json");
-const DB_DIR = path.join(HOME_DIR, ".config", "opencode", "plugins", "opencode-memory", "external");
+const DB_DIR = path.join(HOME_DIR, ".config", "opencode");
 const DB_PATH = path.join(DB_DIR, "fragment_archive.db");
 
 function loadConfig() {

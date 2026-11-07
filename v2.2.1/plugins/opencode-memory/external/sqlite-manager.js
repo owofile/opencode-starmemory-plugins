@@ -3,7 +3,7 @@ import * as path from "path";
 import * as fs from "fs";
 
 const HOME_DIR = process.env.USERPROFILE || "";
-const DB_DIR = path.join(HOME_DIR, ".config", "opencode", "plugins", "opencode-memory", "external");
+const DB_DIR = path.join(HOME_DIR, ".config", "opencode");
 const DB_PATH = path.join(DB_DIR, "fragment_archive.db");
 
 async function getDb() {
