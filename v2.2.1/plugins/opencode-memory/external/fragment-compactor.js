@@ -178,6 +178,8 @@ function getColdFragments(fragments, config, mode) {
             coldConditions = (f) => {
                 const createdAt = new Date(f.created_at);
                 const lastRecalled = f.last_recalled ? new Date(f.last_recalled) : null;
+                // 高频记忆（被召回≥3次）永不自动归档：多次召回证明有用，即使最近未用也保留（与 O1b 自动佐证逻辑一致）
+                if ((f.access_count || 0) >= 3) return false;
                 return (lastRecalled && lastRecalled < coldThreshold) || createdAt < ageThreshold;
             };
             break;
