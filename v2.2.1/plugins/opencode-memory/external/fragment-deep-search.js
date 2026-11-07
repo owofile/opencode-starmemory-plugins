@@ -20,20 +20,23 @@ function saveFragments(fragments) {
     fs.writeFileSync(FRAGMENTS_PATH, JSON.stringify({ fragments }, null, 2), "utf-8");
 }
 
+function tokenizeQuery(q) {
+    // 分词：按空白/中英文标点拆分，过滤单字（无区分度，避免单字 LIKE 命中大量无关）
+    return String(q || "").toLowerCase().split(/[\s,，。；;、:：]+/).filter(t => t.length >= 2);
+}
+
 function searchInJson(query, limit = 5) {
     const fragments = loadFragments();
-    const queryLower = query.toLowerCase();
+    const terms = tokenizeQuery(query);
     const results = [];
 
     for (const f of fragments) {
         let matchScore = 0;
-        if (f.content.toLowerCase().includes(queryLower)) {
-            matchScore += 1;
-        }
-        for (const a of (f.associations || [])) {
-            if (a.toLowerCase().includes(queryLower)) {
-                matchScore += 0.8;
-            }
+        const content = (f.content || "").toLowerCase();
+        const assocs = (f.associations || []).map(a => String(a).toLowerCase());
+        for (const term of terms) {
+            if (content.includes(term)) matchScore += 1;
+            if (assocs.some(a => a.includes(term))) matchScore += 0.8;
         }
         if (matchScore > 0) {
             results.push({ ...f, matchScore, source: "json" });
@@ -79,11 +82,22 @@ async function searchInArchive(query, limit = 5) {
     const db = await getDb();
     if (!db) return [];
 
-    const result = db.exec(`
-        SELECT * FROM fragment_archive
-        WHERE content LIKE ? OR associations LIKE ?
-        LIMIT ?
-    `, [`%${query}%`, `%${query}%`, limit]);
+    const terms = tokenizeQuery(query);
+    if (terms.length === 0) { closeDb(db); return []; }
+
+    // 分词 LIKE：任一词命中 content/associations 即返回（整句 LIKE 会因停顿词/插入词漏匹配，如"最终"插在中间）
+    const conds = [];
+    const params = [];
+    for (const term of terms) {
+        conds.push("(content LIKE ? OR associations LIKE ?)");
+        params.push(`%${term}%`, `%${term}%`);
+    }
+    params.push(limit);
+
+    const result = db.exec(
+        `SELECT * FROM fragment_archive WHERE ${conds.join(" OR ")} LIMIT ?`,
+        params
+    );
     closeDb(db);
 
     if (result.length === 0 || result[0].values.length === 0) {
@@ -102,7 +116,15 @@ async function searchInArchive(query, limit = 5) {
             }
         });
         delete fragment.archived_at;
-        fragments.push({ ...fragment, source: "archive" });
+        // 补 matchScore（与 searchInJson 口径一致：词命中 content +1 / associations +0.8）
+        let matchScore = 0;
+        const content = (fragment.content || "").toLowerCase();
+        const assocs = (fragment.associations || []).map(a => String(a).toLowerCase());
+        for (const term of terms) {
+            if (content.includes(term)) matchScore += 1;
+            if (assocs.some(a => a.includes(term))) matchScore += 0.8;
+        }
+        fragments.push({ ...fragment, matchScore, source: "archive" });
     }
 
     return fragments;
