@@ -1373,7 +1373,7 @@ export default Plugin.define({
             const [devClicks, setDevClicks] = createSignal(0);
             const [devMsg, setDevMsg] = createSignal("");
             const [devSel, setDevSel] = createSignal(0);
-            const DEV_CLICK_TARGET = 5;
+            const DEV_CLICK_TARGET = 7;
             function devTap() {
                 const n = devClicks() + 1;
                 setDevClicks(n);
@@ -1383,7 +1383,7 @@ export default Plugin.define({
                     setDevMsg("开发者模式已解锁");
                     context.ui.toast.show({ message: t("tabDev") + " · unlocked", variant: "success" });
                 } else if (!devUnlocked()) {
-                    setDevMsg(`点 ${n}/${DEV_CLICK_TARGET} 解锁开发者模式`);
+                    setDevMsg(`overview 按 d ${n}/${DEV_CLICK_TARGET} 解锁开发者模式`);
                 }
             }
             // 可用 Tab：召回功能关时直接隐藏召回 Tab（与侧栏 RecallBar 门控一致，settings.get().auto_recall === true）
@@ -1664,6 +1664,7 @@ export default Plugin.define({
                     { id: "opencode.memory.sel.left", bind: "left", run: () => { if (effTab() === "agents") agentsMove(0, -1); else if (effTab() === "recall") recallCollapse(); } },
                     { id: "opencode.memory.sel.right", bind: "right", run: () => { if (effTab() === "agents") agentsMove(0, 1); else if (effTab() === "recall") recallExpand(); } },
                     { id: "opencode.memory.sel.enter", bind: "enter", run: () => { if (effTab() === "agents") agentsActivate(); else if (effTab() === "recall") recallToggle(); else if (effTab() === "dev") void devEdit(); } },
+                    { id: "opencode.memory.dev", bind: "d", run: () => { if (effTab() === "overview") devTap(); } },
                     { id: "opencode.memory.fold", bind: "f", run: () => toggleFold(effTab()) },
                     { id: "opencode.memory.manage", bind: "e", run: () => { void browseDialog(); } },
                     { id: "opencode.memory.settings", bind: "s", run: () => { void settingsDialog(); } },
@@ -1944,7 +1945,7 @@ export default Plugin.define({
                     </text>
                     {/* 标题（打字机入场）+ 版本右 */}
                     <For each={HEADER}>
-                        {(s, i) => <TypeLine start={s.start} text={s.text} fg={HEADER_FG(s)} caret={caretIdx() === i()} right={s.right} onClick={i() === 0 ? devTap : undefined} />}
+                        {(s, i) => <TypeLine start={s.start} text={s.text} fg={HEADER_FG(s)} caret={caretIdx() === i()} right={s.right} />}
                     </For>
                     {/* 状态注释行 */}
                     <text fg={muted}>{`// ${st().total} fragments · ${st().byActivation.hot} hot · ${st().byActivation.cold} cold · rev ${rev()} · updated ${lastRevAt.day} ${lastRevAt.clock}`}</text>
